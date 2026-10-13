@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import type { CSSProperties, JSX, MouseEvent, KeyboardEvent } from 'react';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import classNames from 'classnames';
 
 import { ImageOrBlurhash } from '../ImageOrBlurhash.dom.tsx';
@@ -18,6 +18,7 @@ import { SpinnerV2 } from '../SpinnerV2.dom.tsx';
 import { useUndownloadableMediaHandler } from '../../hooks/useUndownloadableMediaHandler.dom.tsx';
 import type { TellomiSpoilerRevealPoint } from './TellomiSpoilerCover.dom.tsx';
 import { TellomiSpoilerCover } from './TellomiSpoilerCover.dom.tsx';
+import { drop } from '../../util/drop.std.ts';
 
 export enum CurveType {
   None = 0,
@@ -64,7 +65,17 @@ export type Props = {
   onError?: () => void;
   /** Tellomi (spec R-1): called once a covered image / video has been uncovered here. */
   onTellomiSpoilerRevealed?: (attachment: AttachmentForUIType) => void;
+  /** Tellomi (spec R-2): a live photo's moving half, as a URL to play (undefined when it can't be had). */
+  fetchTellomiLivePhotoVideo?: (
+    attachment: AttachmentForUIType
+  ) => Promise<string | undefined>;
 };
+
+/** Tellomi (spec R-2): live photos that already played once by themselves in this run. */
+const autoplayedTellomiLivePhotos = new Set<string>();
+
+/** Tellomi (spec R-2): back to the still (Telegram: 0.3 s). Same as the CSS transition. */
+const TELLOMI_LIVE_FADE_MS = 300;
 
 export function Image({
   alt,
@@ -90,6 +101,7 @@ export function Image({
   onClickClose,
   onError,
   onTellomiSpoilerRevealed,
+  fetchTellomiLivePhotoVideo,
   overlayText,
   playIconOverlay,
   tabIndex,
@@ -122,6 +134,74 @@ export function Image({
     setTellomiReveal('revealed');
     onTellomiSpoilerRevealed?.(attachment);
   }, [attachment, onTellomiSpoilerRevealed]);
+
+  // Tellomi (tellomi/tellomi#1263, spec R-2): a live photo has the live badge in its corner and plays its
+  // moving half once, muted, the first time it is on screen in this run, then fades back to the still
+  // (Telegram: `ChatMessageInteractiveMediaNode` autoplays when the bubble appears; 0.3 s fade). Pointing
+  // at it plays it again (ADR-0068: Desktop plays on hover). Not while it is covered, not before the
+  // still is here.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const liveKey = attachment.tellomiLivePhotoVideo?.cdnKey;
+  const isTellomiLive = liveKey != null && fetchTellomiLivePhotoVideo != null;
+  const canPlayTellomiLive =
+    isTellomiLive && !showTellomiCover && Boolean(attachment.path);
+  const [tellomiLive, setTellomiLive] = useState<
+    Readonly<{ url: string; fading: boolean; run: number }> | undefined
+  >();
+  const tellomiLiveRun = useRef(0);
+  const tellomiLiveFadeTimer = useRef<NodeJS.Timeout | undefined>(undefined);
+  useEffect(() => () => clearTimeout(tellomiLiveFadeTimer.current), []);
+  const playTellomiLive = useCallback(async () => {
+    if (!canPlayTellomiLive || fetchTellomiLivePhotoVideo == null) {
+      return;
+    }
+    const videoUrl = await fetchTellomiLivePhotoVideo(attachment);
+    if (videoUrl != null) {
+      clearTimeout(tellomiLiveFadeTimer.current);
+      tellomiLiveRun.current += 1;
+      setTellomiLive({
+        url: videoUrl,
+        fading: false,
+        run: tellomiLiveRun.current,
+      });
+    }
+  }, [attachment, canPlayTellomiLive, fetchTellomiLivePhotoVideo]);
+  const fadeTellomiLive = useCallback(() => {
+    setTellomiLive(current =>
+      current ? { ...current, fading: true } : current
+    );
+    clearTimeout(tellomiLiveFadeTimer.current);
+    tellomiLiveFadeTimer.current = setTimeout(() => {
+      setTellomiLive(current => (current?.fading ? undefined : current));
+    }, TELLOMI_LIVE_FADE_MS);
+  }, []);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (
+      !canPlayTellomiLive ||
+      liveKey == null ||
+      root == null ||
+      autoplayedTellomiLivePhotos.has(liveKey)
+    ) {
+      return;
+    }
+    const observer = new IntersectionObserver(
+      entries => {
+        if (
+          entries.some(entry => entry.isIntersecting) &&
+          !autoplayedTellomiLivePhotos.has(liveKey)
+        ) {
+          autoplayedTellomiLivePhotos.add(liveKey);
+          observer.disconnect();
+          drop(playTellomiLive());
+        }
+      },
+      { threshold: 0.5 }
+    );
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, [canPlayTellomiLive, liveKey, playTellomiLive]);
 
   const showVisualAttachmentClick = useCallback(
     (event: MouseEvent) => {
@@ -283,6 +363,15 @@ export function Image({
 
   return (
     <div
+      ref={rootRef}
+      onMouseEnter={
+        canPlayTellomiLive && (tellomiLive == null || tellomiLive.fading)
+          ? () => drop(playTellomiLive())
+          : undefined
+      }
+      onMouseLeave={
+        tellomiLive != null && !tellomiLive.fading ? fadeTellomiLive : undefined
+      }
       className={classNames(
         'module-image',
         className,
@@ -297,6 +386,27 @@ export function Image({
       }}
     >
       {imageOrBlurHash}
+      {tellomiLive != null && canPlayTellomiLive ? (
+        <video
+          className={classNames('module-image__tellomi-live-video', {
+            'module-image__tellomi-live-video--fading': tellomiLive.fading,
+          })}
+          key={tellomiLive.run}
+          src={tellomiLive.url}
+          style={curveStyles}
+          muted
+          autoPlay
+          playsInline
+          onEnded={fadeTellomiLive}
+        />
+      ) : null}
+      {isTellomiLive && !showTellomiCover ? (
+        <span
+          className="module-image__tellomi-live-badge"
+          role="img"
+          aria-label={i18n('icu:Image--tellomi-live-photo-badge')}
+        />
+      ) : null}
       {showTellomiCover ? (
         <TellomiSpoilerCover
           url={url}
