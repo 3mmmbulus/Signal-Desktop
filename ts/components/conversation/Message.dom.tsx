@@ -88,6 +88,7 @@ import {
   isImage,
   isImageAttachment,
   isTellomiAsFile,
+  isTellomiSpoilerCovered,
   isVideo,
   isVideoAttachment,
 } from '../../util/Attachment.std.ts';
@@ -157,6 +158,14 @@ const OPENS_ON_CLICK_SELECTOR =
   'a[href], [role=link], .module-message__link-preview:not(.module-message__link-preview--nonclickable)';
 const STICKER_SIZE = 200;
 const GIF_SIZE = 300;
+
+// Tellomi (tellomi/tellomi#1263, spec R-1): a covered GIF doesn't play in the timeline; until it's
+// uncovered it is drawn like a covered video (ImageGrid with the cover).
+function isGIFPlayedInline(
+  attachments?: ReadonlyArray<AttachmentForUIType>
+): boolean {
+  return isGIF(attachments) && !isTellomiSpoilerCovered(attachments?.[0]);
+}
 // Note: this needs to match the animation time
 const TARGETED_TIMEOUT = 1200;
 const SENT_STATUSES = new Set<MessageStatusType>([
@@ -399,6 +408,11 @@ export type PropsActions = {
   cancelAttachmentDownload: (options: { messageId: string }) => void;
   kickOffAttachmentDownload: (options: { messageId: string }) => void;
   markAttachmentAsCorrupted: (options: {
+    attachment: AttachmentType;
+    messageId: string;
+  }) => void;
+  /** Tellomi (tellomi/tellomi#1263, spec R-1): a covered image / video was uncovered here. */
+  revealTellomiSpoiler?: (options: {
     attachment: AttachmentType;
     messageId: string;
   }) => void;
@@ -1243,6 +1257,7 @@ export class Message extends PureComponent<Props, State> {
       pushPanelForConversation,
       quote,
       renderAudioAttachment,
+      revealTellomiSpoiler,
       renderingContext,
       retryDeleteForEveryone,
       retryMessageSend,
@@ -1304,7 +1319,7 @@ export class Message extends PureComponent<Props, State> {
           : null
       );
 
-      if (isGIF(attachments)) {
+      if (isGIFPlayedInline(attachments)) {
         return (
           <div className={containerClassName}>
             {/* oxlint-disable-next-line react/jsx-pascal-case */}
@@ -1369,6 +1384,9 @@ export class Message extends PureComponent<Props, State> {
                 cancelAttachmentDownload({ messageId: id });
               }}
               showMediaNoLongerAvailableToast={showMediaNoLongerAvailableToast}
+              onTellomiSpoilerRevealed={attachment => {
+                revealTellomiSpoiler?.({ attachment, messageId: id });
+              }}
             />
           </div>
         );
@@ -3110,7 +3128,7 @@ export class Message extends PureComponent<Props, State> {
     }
 
     if (attachments && attachments.length) {
-      if (isGIF(attachments)) {
+      if (isGIFPlayedInline(attachments)) {
         // Message container border
         return GIF_SIZE + 2;
       }
@@ -3855,7 +3873,7 @@ export class Message extends PureComponent<Props, State> {
 
     const containerClassnames = classNames(
       'module-message__container',
-      isGIF(attachments) && !isTapToView
+      isGIFPlayedInline(attachments) && !isTapToView
         ? 'module-message__container--gif'
         : null,
       isTargeted ? 'module-message__container--targeted' : null,

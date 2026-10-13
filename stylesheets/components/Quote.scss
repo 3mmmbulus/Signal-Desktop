@@ -316,6 +316,23 @@
   border-bottom-right-radius: 4px;
 }
 
+// Tellomi (tellomi/tellomi#1263, spec R-1): quoting a covered image / video never shows it
+// (Telegram: the reply thumbnail is always fetched blurred). The sharp picture isn't drawn; a blurred,
+// dimmed copy is, a little larger than the box so the blur's edge stays outside.
+.module-quote__icon-container--tellomi-spoiler {
+  overflow: hidden;
+  background-size: 0 0;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -12px;
+    background: inherit;
+    background-size: cover;
+    filter: blur(8px) brightness(0.85);
+  }
+}
+
 .module-quote__icon-container__outgoing-gift-badge {
   @include mixins.light-theme {
     border: 1px solid variables.$color-white;
