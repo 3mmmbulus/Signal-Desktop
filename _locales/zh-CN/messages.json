@@ -9347,5 +9347,11 @@
   },
   "icu:TellomiUpdateRequired__read_only_banner": {
     "messageformat": "需要更新才能继续收发消息。"
+  },
+  "icu:TellomiFeedPostLink__title": {
+    "messageformat": "请在手机上打开"
+  },
+  "icu:TellomiFeedPostLink__description": {
+    "messageformat": "动态只能在 iOS 或安卓版 Tellomi 里查看。请在手机上打开这条链接。"
   }
 }

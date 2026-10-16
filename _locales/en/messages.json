@@ -12432,5 +12432,13 @@
   "icu:TellomiUpdateRequired__read_only_banner": {
     "messageformat": "Update Tellomi to keep sending and receiving messages.",
     "description": "Tellomi (tellomi/tellomi#1399): red banner above the chat list while this version is read-only because an update is required; clicking it opens the update-required page again."
+  },
+  "icu:TellomiFeedPostLink__title": {
+    "messageformat": "Open this on your phone",
+    "description": "Tellomi: title of the notice shown on Desktop when a tell.cc/m link (a feed post) is opened. Desktop has no feed (ADR-0071 D1), so the post can only be viewed on iOS or Android."
+  },
+  "icu:TellomiFeedPostLink__description": {
+    "messageformat": "Posts in the feed can only be viewed in Tellomi on iOS or Android. Open this link on your phone.",
+    "description": "Tellomi: body of that notice. Tells the user to open the link on their phone; it names no post and does not fetch anything."
   }
 }

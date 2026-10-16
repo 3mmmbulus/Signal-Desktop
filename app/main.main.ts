@@ -3113,6 +3113,11 @@ function handleSignalRoute(route: ParsedSignalRoute) {
     mainWindow.webContents.send('start-call-link', {
       key: route.args.key,
     });
+  } else if (route.key === 'feedPost') {
+    // Tellomi: Desktop has no feed (ADR-0071 D1); tell the user to open the post on their phone.
+    // The id stays out of the log and is not sent anywhere.
+    mainWindow.webContents.send('show-feed-post-on-phone');
+    showWindow();
   } else if (route.key === 'showWindow') {
     mainWindow.webContents.send('show-window');
   } else if (route.key === 'cancelPresenting') {

@@ -297,6 +297,84 @@ describe('signalRoutes', () => {
     assert.isUndefined(callLinkRootKeyToUrl(''));
   });
 
+  // Tellomi: feed post links (`tell.cc/m#<content id>`). Desktop has no feed (ADR-0071 D1), so the route only
+  // exists to recognise the link and tell the user to open it on their phone; it used to be dropped silently.
+  describe('feedPost', () => {
+    const id = '3f2a6c1e-8b4d-4e2f-9a7c-5d1e0b9c4a21';
+    const result: ParsedSignalRoute = {
+      key: 'feedPost',
+      args: { postId: id },
+    };
+
+    it('parses the web and app shapes, with or without a slash after /m', () => {
+      const check = createCheck();
+      check(`https://tell.cc/m#${id}`, result);
+      check(`https://tell.cc/m/#${id}`, result);
+      check(`tellomi://tell.cc/m#${id}`, result);
+      check(`tellomi://tell.cc/m/#${id}`, result);
+    });
+
+    it('lowercases the id, like Android parsePostId', () => {
+      const check = createCheck();
+      check(`https://tell.cc/m#${id.toUpperCase()}`, result);
+      check(`tellomi://tell.cc/m#${id.toUpperCase()}`, result);
+    });
+
+    it('generates the no-slash links, whichever shape came in', () => {
+      for (const input of [
+        `https://tell.cc/m/#${id}`,
+        `tellomi://tell.cc/m#${id}`,
+      ]) {
+        const url = new URL(input);
+        assert.strictEqual(
+          toSignalRouteWebUrl(url)?.toString(),
+          `https://tell.cc/m#${id}`
+        );
+        assert.strictEqual(
+          toSignalRouteAppUrl(url)?.toString(),
+          `tellomi://tell.cc/m#${id}`
+        );
+      }
+    });
+
+    it('does not take anything that is not a post id', () => {
+      const check = createCheck({
+        isRoute: false,
+        hasAppUrl: false,
+        hasWebUrl: false,
+      });
+      // No id, empty id, not a UUID, extra characters around a UUID
+      check('https://tell.cc/m', null);
+      check('https://tell.cc/m#', null);
+      check('https://tell.cc/m/', null);
+      check('tellomi://tell.cc/m#', null);
+      check('https://tell.cc/m#abc', null);
+      check('https://tell.cc/m#12345', null);
+      check(`https://tell.cc/m#${id}0`, null);
+      check(`https://tell.cc/m#${id.slice(1)}`, null);
+      check(`https://tell.cc/m#${id}/x`, null);
+      check(`https://tell.cc/m#id=${id}`, null);
+      check(`https://tell.cc/m#p/${id}`, null);
+      // Id in the wrong place
+      check(`https://tell.cc/m/${id}`, null);
+      check(`https://tell.cc/m?${id}`, null);
+      check(`https://tell.cc/m/x#${id}`, null);
+      // Not our hosts or schemes
+      check(`https://example.com/m#${id}`, null);
+      check(`https://signal.me/m#${id}`, null);
+      check(`sgnl://tell.cc/m#${id}`, null);
+    });
+
+    it('does not change the other tell.cc routes or reserved paths', () => {
+      assert.strictEqual(
+        parseSignalRoute(new URL(`https://tell.cc/u#u/ceshi.57`))?.key,
+        'contactByUsername'
+      );
+      assert.isNull(parseSignalRoute(new URL('https://tell.cc/e#abc')));
+      assert.isNull(parseSignalRoute(new URL('https://tell.cc/mm#abc')));
+    });
+  });
+
   it('artAddStickers', () => {
     const result: ParsedSignalRoute = {
       key: 'artAddStickers',

@@ -496,6 +496,44 @@ export const linkCallRoute = _route('linkCall', {
 });
 
 /**
+ * Tellomi: a feed post link (`https://tell.cc/m#<content id>`, `tellomi://tell.cc/m#<content id>`;
+ * docs/signal/LINKS_AND_SCHEMES.md). Desktop has no feed (ADR-0071 D1), so this route exists only so
+ * the link is recognised and Desktop can say "open this on your phone" instead of dropping it
+ * silently. The id is a UUID (lowercased, like Android's `TellomiLinks.parsePostId`); anything else
+ * is not a route. Desktop never looks the post up.
+ * @example
+ * ```ts
+ * feedPostRoute.toWebUrl({
+ *   postId: "3f2a6c1e-8b4d-4e2f-9a7c-5d1e0b9c4a21",
+ * })
+ * // URL { "https://tell.cc/m#3f2a6c1e-8b4d-4e2f-9a7c-5d1e0b9c4a21" }
+ * ```
+ */
+export const feedPostRoute = _route('feedPost', {
+  patterns: [
+    _pattern('https:', 'tell.cc', '/m{/}?', { hash: ':postId' }),
+    _pattern('tellomi:', 'tell.cc', '/m{/}?', { hash: ':postId' }),
+  ],
+  schema: z.object({
+    postId: z
+      .string()
+      .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+      .transform(value => value.toLowerCase()),
+  }),
+  parse(result) {
+    return {
+      postId: result.hash.groups.postId,
+    };
+  },
+  toWebUrl(args) {
+    return new URL(`https://tell.cc/m#${args.postId}`);
+  },
+  toAppUrl(args) {
+    return new URL(`tellomi://tell.cc/m#${args.postId}`);
+  },
+});
+
+/**
  * Sticker packs
  * @example
  * ```ts
@@ -766,6 +804,7 @@ const _allSignalRoutes = [
   linkDeviceRoute,
   captchaRoute,
   linkCallRoute,
+  feedPostRoute,
   artAddStickersRoute,
   showConversationRoute,
   startCallLobbyRoute,
