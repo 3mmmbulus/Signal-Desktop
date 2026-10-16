@@ -463,6 +463,10 @@ ipc.on('show-conversation-via-signal.me', (_event, info) => {
   }
 });
 
+ipc.on('show-feed-post-on-phone', () => {
+  window.Events.showFeedPostOnPhone?.();
+});
+
 ipc.on('unknown-sgnl-link', () => {
   const { unknownSignalLink } = window.Events;
   if (unknownSignalLink) {

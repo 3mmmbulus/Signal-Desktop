@@ -68,6 +68,7 @@ export type IPCEventsCallbacksType = {
     kind: string,
     value: string
   ) => Promise<void>;
+  showFeedPostOnPhone: () => void;
   showKeyboardShortcuts: () => void;
   showGroupViaLink: (value: string) => Promise<void>;
   showReleaseNotes: () => void;
@@ -398,6 +399,15 @@ export function createIPCEvents(
       log.info('showConversationViaSignalDotMe: invalid E164');
       showUnknownSgnlLinkModal();
     },
+    showFeedPostOnPhone: () => {
+      // Tellomi: Desktop has no feed (ADR-0071 D1). We can get these events even if the user has
+      // never linked this instance, in which case there is nothing to show them in.
+      if (!Registration.everDone()) {
+        log.warn('showFeedPostOnPhone: Not registered, returning early');
+        return;
+      }
+      showFeedPostOnPhoneModal();
+    },
     showKeyboardShortcuts: () =>
       window.reduxActions.globalModals.showShortcutGuideModal(),
     showGroupViaLink: async value => {
@@ -456,6 +466,13 @@ export function createIPCEvents(
     },
     ...overrideEvents,
   };
+}
+
+function showFeedPostOnPhoneModal(): void {
+  window.reduxActions.globalModals.showErrorModal({
+    title: i18n('icu:TellomiFeedPostLink__title'),
+    description: i18n('icu:TellomiFeedPostLink__description'),
+  });
 }
 
 function showUnknownSgnlLinkModal(): void {
