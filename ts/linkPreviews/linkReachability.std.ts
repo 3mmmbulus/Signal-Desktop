@@ -1,11 +1,12 @@
 // Copyright 2026 重庆半格智能科技有限公司
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// ADR-0063 §4.3: hosts that failed at the network layer (DNS, TCP, TLS) on the current network are
-// skipped by later previews. Memory only — never stored, never reported — and forgotten after
-// 30 minutes or when the network changes.
+// ADR-0063 §4.3: hosts that definitely failed at the network layer (DNS, refused, reset, TLS — never
+// a timeout) on the current network are skipped by later previews. Memory only — never stored,
+// never reported — and forgotten after 2 minutes (PM 2026-10-19, was 30) or when the network
+// changes.
 
-const TTL_MS = 30 * 60 * 1000;
+const TTL_MS = 2 * 60 * 1000;
 
 const unreachable = new Map<string, number>();
 

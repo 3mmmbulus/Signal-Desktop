@@ -40,6 +40,8 @@ export type LinkFetchResult =
       location: string | null;
       body: Uint8Array<ArrayBuffer>;
       redirects: number;
+      // An HTML page over `maxBytes`: only its first `maxBytes` bytes are here (ADR-0063 §4.4).
+      truncated?: true;
     }>
   | Readonly<{ type: 'network_error' }>
   | Readonly<{ type: 'failure'; reason: LinkFetchFailure }>;
