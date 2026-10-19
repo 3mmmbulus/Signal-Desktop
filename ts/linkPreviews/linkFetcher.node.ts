@@ -19,7 +19,8 @@ import type {
 
 // ADR-0063 §4.4 / §6.2: the one fetcher rust/links' requests go through on Desktop.
 // - Headers are exactly User-Agent, Accept and Accept-Encoding (plus the Host HTTP/1.1 needs);
-//   no cookies are kept or sent.
+//   no cookies are kept or sent. The User-Agent is rust's, except a page on one of the exact
+//   hosts in BROWSER_USER_AGENT_HOSTS, which is fetched as Safari.
 // - Redirects are followed by hand, at most `maxRedirects`; every hop is re-checked: https only,
 //   `isAllowedUrl`, and the addresses DNS returned (checked in the lookup that the connection
 //   itself uses, so there is no gap between checking and connecting).
@@ -58,6 +59,34 @@ class FetchFailure extends Error {
 async function systemResolve(host: string): Promise<ReadonlyArray<string>> {
   const answers = await dnsLookup(host, { all: true, verbatim: true });
   return answers.map(({ address }) => address);
+}
+
+// PM 2026-10-19 (ADR-0063 §4.4): the one exception to the single WhatsApp/2 User-Agent. These
+// exact hosts (no subdomains, no suffix match) answer WhatsApp/2 with a page that has no title or
+// picture, but give the article's Open Graph tags to Safari. Only the page itself — its pictures
+// are fetched as WhatsApp/2. Adding a host needs the PM's approval. The same list is in the iOS
+// and Android fetchers.
+const BROWSER_USER_AGENT =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 ' +
+  '(KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+const BROWSER_USER_AGENT_HOSTS: ReadonlySet<string> = new Set([
+  'mp.weixin.qq.com',
+]);
+
+/** @testexport */
+export function userAgentFor(
+  url: URL,
+  request: Readonly<
+    Pick<LinkFetchRequest, 'kind' | 'contentTypes' | 'userAgent'>
+  >
+): string {
+  const isPage =
+    request.kind === 'fetch' &&
+    (request.contentTypes ?? []).includes('text/html');
+  if (isPage && BROWSER_USER_AGENT_HOSTS.has(url.hostname.toLowerCase())) {
+    return BROWSER_USER_AGENT;
+  }
+  return request.userAgent;
 }
 
 function mimeType(contentType: string | undefined): string {
@@ -161,7 +190,7 @@ function oneHop(
       setDefaultHeaders: false,
       headers: {
         Host: url.host,
-        'User-Agent': request.userAgent,
+        'User-Agent': userAgentFor(url, request),
         Accept: request.accept,
         'Accept-Encoding': 'gzip, deflate, br',
       },

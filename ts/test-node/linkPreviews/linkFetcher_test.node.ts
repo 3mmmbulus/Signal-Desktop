@@ -15,7 +15,10 @@ import { assert } from 'chai';
 
 import type { LinkFetchEnv } from '../../linkPreviews/linkFetcher.node.ts';
 import type { LinkFetchRequest } from '../../linkPreviews/linkFetchTypes.std.ts';
-import { performLinkFetch } from '../../linkPreviews/linkFetcher.node.ts';
+import {
+  performLinkFetch,
+  userAgentFor,
+} from '../../linkPreviews/linkFetcher.node.ts';
 
 // ADR-0063 §4.4 / §6.2 (tellomi/tellomi#1421): the Desktop fetcher against an offline fixture —
 // a local https server with a throwaway certificate for *.fetch-fixture.test, a fake DNS, and
@@ -266,6 +269,49 @@ describe('performLinkFetch', function (this: Mocha.Suite) {
     assert.strictEqual(
       result.type === 'response' && Buffer.from(result.body).toString(),
       HTML
+    );
+  });
+
+  // PM 2026-10-19 (ADR-0063 §4.4): Safari only for the page itself, only on the exact host.
+  it('sends a Safari User-Agent only for a page on mp.weixin.qq.com', () => {
+    const html = page('https://mp.weixin.qq.com/s/abc');
+    const image = page('https://mp.weixin.qq.com/s/abc', {
+      kind: 'image',
+      accept: 'image/*',
+      contentTypes: ['image/jpeg'],
+    });
+    const json = page('https://mp.weixin.qq.com/s/abc', {
+      accept: 'application/json',
+      contentTypes: ['application/json'],
+    });
+    const ua = (url: string, request: LinkFetchRequest = html) =>
+      userAgentFor(new URL(url), request);
+    assert.match(ua('https://mp.weixin.qq.com/s/abc'), /Safari/);
+    assert.match(ua('https://MP.Weixin.QQ.com/s/abc'), /Safari/);
+    assert.strictEqual(ua('https://weixin.qq.com/'), 'WhatsApp/2');
+    assert.strictEqual(ua('https://x.mp.weixin.qq.com/s/abc'), 'WhatsApp/2');
+    assert.strictEqual(ua('https://mp.weixin.qq.com.evil.cn/s'), 'WhatsApp/2');
+    assert.strictEqual(ua('https://mmbiz.qpic.cn/a.jpg'), 'WhatsApp/2');
+    assert.strictEqual(
+      ua('https://mp.weixin.qq.com/s/abc', image),
+      'WhatsApp/2'
+    );
+    assert.strictEqual(
+      ua('https://mp.weixin.qq.com/s/abc', json),
+      'WhatsApp/2'
+    );
+    assert.strictEqual(
+      ua('https://mp.weixin.qq.com/s/abc', {
+        kind: 'expand',
+        url: 'https://mp.weixin.qq.com/s/abc',
+        userAgent: 'WhatsApp/2',
+        accept: '*/*',
+        maxBytes: 0,
+        maxRedirects: 0,
+        connectTimeoutMs: 5000,
+        timeoutMs: 10000,
+      }),
+      'WhatsApp/2'
     );
   });
 
