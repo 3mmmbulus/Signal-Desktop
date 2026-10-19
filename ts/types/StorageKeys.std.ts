@@ -168,6 +168,10 @@ export type StorageAccessType = {
   // Tellomi（tellomi/tellomi ADR-0078 §3.4）：服务端最近一次告诉这台设备的人工处置（截止时间到了自动清掉），
   // 左栏横幅显示它，见 services/tellomiRestriction
   tellomiRestriction: TellomiRestriction;
+  // Tellomi (pinned-messages.md 3.4, ADR-0081 P3): chats whose pinned messages bar was hidden on this device (a member
+  // without the pin permission pressing ×): chat id -> the date (`received_at`) of the newest pinned message then.
+  // The bar comes back with a pin newer than that. Never synced; see util/tellomiPinnedBar
+  tellomiPinnedBarHidden: Record<string, number>;
   universalExpireTimer: number;
   retryPlaceholders: ReadonlyArray<RetryItemType>;
   donationPermits: string;
@@ -645,6 +649,8 @@ const STORAGE_KEYS_TO_REMOVE_AFTER_UNLINK = [
   'tellomiCrossBorderNoticeVersion',
   // Tellomi（tellomi/tellomi ADR-0078 §3.4）：是这个账号的处置，换账号关联后不该还在
   'tellomiRestriction',
+  // Tellomi (ADR-0081 P3): chat ids belong to this account's chats
+  'tellomiPinnedBarHidden',
 ] as const satisfies ReadonlyArray<keyof StorageAccessType>;
 
 // Ensure every storage key is explicitly marked to be preserved or removed on unlink.

@@ -1466,6 +1466,54 @@
   "icu:PinnedMessagesBar__ActionsMenu__SeeAllMessages": {
     "messageformat": "睇晒全部訊息"
   },
+  "icu:TellomiPinnedBar__Title--Pinned": {
+    "messageformat": "置頂訊息"
+  },
+  "icu:TellomiPinnedBar__Title--Previous": {
+    "messageformat": "上一條置頂"
+  },
+  "icu:TellomiPinnedBar__Title--Numbered": {
+    "messageformat": "置頂訊息 #{number, number}"
+  },
+  "icu:TellomiPinnedBar__ShowAll__AccessibilityLabel": {
+    "messageformat": "睇晒所有置頂訊息"
+  },
+  "icu:TellomiPinnedBar__Unpin__AccessibilityLabel": {
+    "messageformat": "取消置頂"
+  },
+  "icu:TellomiPinnedBar__Hide__AccessibilityLabel": {
+    "messageformat": "收埋置頂訊息"
+  },
+  "icu:TellomiPinnedBar__UnpinConfirm__Title": {
+    "messageformat": "係咪取消置頂呢條訊息？"
+  },
+  "icu:TellomiPinnedBar__UnpinConfirm__Unpin": {
+    "messageformat": "取消置頂"
+  },
+  "icu:TellomiPinUnpinned": {
+    "messageformat": "{count, plural, =1 {已取消置頂} other {# 條訊息已取消置頂}}"
+  },
+  "icu:TellomiPinUnpinned__Undo": {
+    "messageformat": "還原"
+  },
+  "icu:TellomiPinUnpinFailed": {
+    "messageformat": "取消置頂失敗，呢條訊息仍然置頂。"
+  },
+  "icu:TellomiPinnedPanel__Title": {
+    "messageformat": "{count, plural, other {# 條置頂訊息}}"
+  },
+  "icu:TellomiPinnedPanel__UnpinAll": {
+    "messageformat": "取消所有置頂"
+  },
+  "icu:TellomiPinnedPanel__Hide": {
+    "messageformat": "收埋置頂訊息"
+  },
+  "icu:TellomiPinnedPanel__OnlyYou": {
+    "messageformat": "淨係自己睇到"
+  },
+  "icu:TellomiPinBarHidden": {
+    "messageformat": "置頂訊息已收埋，有新嘅置頂時會再顯示"
+  },
   "icu:PinnedMessagesBar__MessagePreview__SymbolLabel--VoiceMessage": {
     "messageformat": "語音訊息"
   },

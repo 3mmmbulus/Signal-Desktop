@@ -4372,6 +4372,15 @@ function getNearbyMessageFromDeletedSet(
   return null;
 }
 
+// Tellomi (ADR-0081 §九 P5, erel 2026-10-19 after how Telegram behaves): a pin's chat event deleted for everyone is
+// gone from the chat, so the chat list shows (and sorts by) the last message before it. A filter on the rows the
+// index gives, not a change to the generated shouldAffectPreview / shouldAffectActivity columns (no migration); the
+// json is only read for pin chat events.
+const TELLOMI_NOT_DELETED_PIN_NOTICE = `(
+  type IS NOT 'pinned-message-notification' OR
+  (json ->> '$.deletedForEveryone') IS NOT 1
+)`;
+
 function getLastConversationActivity(
   db: ReadableDB,
   {
@@ -4393,7 +4402,8 @@ function getLastConversationActivity(
         shouldAffectActivity IS 1 AND
         isTimerChangeFromSync IS 0 AND
         ${includeStoryReplies ? '' : 'storyId IS NULL AND'}
-        isGroupLeaveEventFromOther IS 0
+        isGroupLeaveEventFromOther IS 0 AND
+        ${TELLOMI_NOT_DELETED_PIN_NOTICE}
       ORDER BY received_at DESC, sent_at DESC
       LIMIT 1;
       `
@@ -4433,7 +4443,8 @@ function getLastConversationPreview(
         WHERE
           conversationId IS $conversationId AND
           shouldAffectPreview IS 1 AND
-          isGroupLeaveEventFromOther IS 0
+          isGroupLeaveEventFromOther IS 0 AND
+          ${TELLOMI_NOT_DELETED_PIN_NOTICE}
           ${includeStoryReplies ? '' : 'AND storyId IS NULL'}
         ORDER BY received_at DESC, sent_at DESC
       )

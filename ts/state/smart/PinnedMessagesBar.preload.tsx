@@ -1,19 +1,30 @@
 // Copyright 2025 Signal Messenger, LLC
 // SPDX-License-Identifier: AGPL-3.0-only
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { useSelector } from 'react-redux';
 import { createSelector } from 'reselect';
-import { orderBy } from 'lodash';
 import { getIntl } from '../selectors/user.std.ts';
 import {
   getConversationSelector,
   getPinnedMessages,
   getMessages,
   getConversationIsReady,
+  getTellomiPinnedForMeMessageIds,
 } from '../selectors/conversations.dom.ts';
 import { getSelectedConversationId } from '../selectors/nav.std.ts';
 import { strictAssert } from '../../util/assert.std.ts';
-import { useConversationsActions } from '../ducks/conversations.preload.ts';
+import {
+  tellomiPinUnpins,
+  useConversationsActions,
+} from '../ducks/conversations.preload.ts';
 import type {
   Pin,
   PinMessage,
@@ -36,6 +47,15 @@ import * as MIME from '../../types/MIME.std.ts';
 import * as EmbeddedContact from '../../types/EmbeddedContact.std.ts';
 import type { StateSelector } from '../types.std.ts';
 import { useNavActions } from '../ducks/nav.std.ts';
+import { canTellomiUnpin } from '../../util/tellomiPinChoice.std.ts';
+import {
+  isTellomiPinnedBarHidden,
+  sortTellomiPinsByMessageOrder,
+  tellomiNextPinAfterTap,
+  tellomiPinFor,
+  tellomiReleasesForcedPin,
+} from '../../util/tellomiPinnedBar.std.ts';
+import { useTellomiPinnedBarHide } from './tellomiPinnedBarHide.preload.ts';
 
 function getPinMessageAttachment(
   props: MessagePropsType
@@ -139,46 +159,14 @@ function getPinSender(props: MessagePropsType): PinSender {
   };
 }
 
-function getLastPinId(pins: ReadonlyArray<Pin>): PinnedMessageId | null {
-  return pins.at(-1)?.id ?? null;
-}
-
-function getPrevPinId(
-  pins: ReadonlyArray<Pin>,
-  pinnedMessageId: PinnedMessageId
-): PinnedMessageId | null {
-  let prev: Pin | null = null;
-  for (const pin of pins) {
-    if (pin.id === pinnedMessageId) {
-      break;
-    }
-    prev = pin;
-  }
-  return prev?.id ?? null;
-}
-
-function getNextPinId(
-  pins: ReadonlyArray<Pin>,
-  pinnedMessageId: PinnedMessageId
-): PinnedMessageId | null {
-  let found = false;
-  for (const pin of pins) {
-    if (found) {
-      return pin.id;
-    }
-    if (pin.id === pinnedMessageId) {
-      found = true;
-    }
-  }
-  return null;
-}
-
+// Tellomi (pinned-messages.md 3.4): the pins in the order their messages are in the chat, the oldest first (not the
+// order they were pinned in), "for me only" pins among the others.
 const selectPins: StateSelector<ReadonlyArray<Pin>> = createSelector(
   getPinnedMessages,
   getMessages,
   getMessagePropsSelector,
   (pinnedMessages, messagesLookup, messagePropsSelector) => {
-    return pinnedMessages.map((pinnedMessage): Pin => {
+    const pins = pinnedMessages.map((pinnedMessage): Pin => {
       const message = messagesLookup[pinnedMessage.messageId];
       strictAssert(message != null, 'Missing pinned message');
       const messageProps = messagePropsSelector(message);
@@ -193,294 +181,344 @@ const selectPins: StateSelector<ReadonlyArray<Pin>> = createSelector(
         ),
       };
     });
+    return sortTellomiPinsByMessageOrder(
+      pins.map(pin => ({
+        pin,
+        receivedAtCounter: pin.message.receivedAtCounter,
+        sentAtTimestamp: pin.message.sentAtTimestamp,
+      }))
+    ).map(({ pin }) => pin);
   }
 );
 
-function isHTMLElement(node: Node): node is HTMLElement {
-  return node instanceof HTMLElement;
-}
-
-function getNodeDataMessageId(node: Node): string | null {
-  if (isHTMLElement(node)) {
-    return node.dataset.messageId ?? null;
+// The newest message on screen: the last message element in the timeline (they are in the order of the chat) that is
+// at least partly inside the scroller. Returns the date (`received_at`) of that message.
+function getNewestVisibleDate(
+  scroller: Element,
+  messagesList: Element,
+  getDate: (messageId: string) => number | undefined
+): number | null {
+  const { top, bottom } = scroller.getBoundingClientRect();
+  const elements =
+    messagesList.querySelectorAll<HTMLElement>('[data-message-id]');
+  for (let i = elements.length - 1; i >= 0; i -= 1) {
+    const element = elements[i];
+    const messageId = element?.dataset.messageId;
+    if (element == null || messageId == null) {
+      continue;
+    }
+    const date = getDate(messageId);
+    if (date == null) {
+      continue;
+    }
+    const rect = element.getBoundingClientRect();
+    if (rect.bottom > top && rect.top < bottom) {
+      return date;
+    }
   }
   return null;
 }
 
-function useTimelineIntersectionObserver(
-  unsortedPins: ReadonlyArray<Pin>,
-  onCurrentChange: (current: PinnedMessageId) => void
-) {
-  const onCurrentChangeRef = useRef(onCurrentChange);
+// How long after the last wheel / key / pointer input what scrolls still counts as the user's own scrolling.
+const USER_SCROLL_WINDOW_MS = 250;
+
+const SCROLL_KEYS = new Set([
+  'ArrowUp',
+  'ArrowDown',
+  'PageUp',
+  'PageDown',
+  'Home',
+  'End',
+  ' ',
+]);
+
+// Tellomi (pinned-messages.md 3.4): what the bar shows follows the timeline — the newest pin at or before the newest
+// message on screen (util/tellomiPinnedBar). `forcedPinDate` is the date of a pin chosen by a tap: while it is set the
+// scrolling the jump itself causes is ignored, and the user scrolling lets it go (`tellomiReleasesForcedPin`).
+function useTimelineFollow({
+  enabled,
+  forcedPinDate,
+  onNewestVisibleDate,
+  onRelease,
+}: {
+  enabled: boolean;
+  forcedPinDate: number | null;
+  onNewestVisibleDate: (date: number | null) => void;
+  onRelease: () => void;
+}) {
+  const messagesLookup = useSelector(getMessages);
+  const callbacksRef = useRef({
+    messagesLookup,
+    forcedPinDate,
+    onNewestVisibleDate,
+    onRelease,
+  });
   useEffect(() => {
-    onCurrentChangeRef.current = onCurrentChange;
-  }, [onCurrentChange]);
+    callbacksRef.current = {
+      messagesLookup,
+      forcedPinDate,
+      onNewestVisibleDate,
+      onRelease,
+    };
+  });
 
   useEffect(() => {
-    // We only need to track anything if there are multiple pins
-    if (unsortedPins.length <= 1) {
+    if (!enabled) {
       return;
     }
-
-    const pins = orderBy<Pin>(
-      unsortedPins,
-      [
-        pin => pin.message.receivedAtCounter,
-        pin => pin.message.sentAtTimestamp,
-      ],
-      ['ASC', 'ASC']
-    );
-
     const scroller = document.querySelector(
       '.module-timeline__messages__container'
     );
-    strictAssert(scroller != null, 'Missing timeline scroller element');
     const messagesList = document.querySelector('.module-timeline__messages');
-    strictAssert(
-      messagesList != null,
-      'Missing timeline messages list element'
-    );
-
-    const pinnedMessageIdsByMessageIds = new Map<string, PinnedMessageId>();
-    for (const pin of pins) {
-      pinnedMessageIdsByMessageIds.set(pin.message.id, pin.id);
+    if (scroller == null || messagesList == null) {
+      return;
     }
 
-    const pinnedMessageIdVisibility = new Map<PinnedMessageId, boolean>();
+    let newestVisibleDate: number | null = null;
+    let userScrollingUntil = 0;
+    let pointerIsDown = false;
+    let frame: number | null = null;
 
-    const intersectionObserver = new IntersectionObserver(
-      entries => {
-        const changesByPinnedMessageId = new Map<
-          PinnedMessageId,
-          IntersectionObserverEntry
-        >();
+    const getDate = (messageId: string) => {
+      return callbacksRef.current.messagesLookup[messageId]?.received_at;
+    };
 
-        const sortedEntries = entries.toSorted((a, b) => {
-          return b.boundingClientRect.bottom - a.boundingClientRect.bottom;
-        });
-
-        for (const entry of sortedEntries) {
-          const messageId = getNodeDataMessageId(entry.target);
-          strictAssert(messageId != null, 'Missing node messageId');
-          const pinnedMessageId = pinnedMessageIdsByMessageIds.get(messageId);
-          strictAssert(pinnedMessageId != null, 'Message is not pinned');
-
-          const prevVisible = pinnedMessageIdVisibility.get(pinnedMessageId);
-          const isVisible = entry.isIntersecting;
-
-          if (prevVisible != null && prevVisible !== isVisible) {
-            changesByPinnedMessageId.set(pinnedMessageId, entry);
-          }
-
-          pinnedMessageIdVisibility.set(pinnedMessageId, isVisible);
-        }
-
-        let currentPinId: PinnedMessageId | null = null;
-
-        for (const [pinnedMessageId, entry] of changesByPinnedMessageId) {
-          strictAssert(entry.rootBounds != null, 'Missing rootBounds');
-          const { top, bottom } = entry.boundingClientRect;
-
-          if (top > entry.rootBounds.bottom) {
-            // entry is below scroll area, show prev pin
-            currentPinId = getPrevPinId(pins, pinnedMessageId);
-            break; // don't check lower pins
-          }
-
-          if (bottom < entry.rootBounds.top) {
-            // entry is above scroll area, show next pin if visible
-            const nextPinId = getNextPinId(pins, pinnedMessageId);
-            if (nextPinId != null && pinnedMessageIdVisibility.get(nextPinId)) {
-              currentPinId = nextPinId;
-            }
-            continue;
-          }
-
-          // entry is intersecting with scroll area, show it
-          currentPinId = pinnedMessageId;
-          break; // don't show further pins
-        }
-
-        if (currentPinId != null) {
-          onCurrentChangeRef.current(currentPinId);
-        }
-      },
-      { root: scroller }
-    );
-
-    function added(node: Node, messageId: string | null) {
-      if (messageId == null || !isHTMLElement(node)) {
-        return;
+    const measure = () => {
+      frame = null;
+      const now = getNewestVisibleDate(scroller, messagesList, getDate);
+      const before = newestVisibleDate;
+      newestVisibleDate = now;
+      const { forcedPinDate: forced } = callbacksRef.current;
+      if (
+        forced != null &&
+        now != null &&
+        before != null &&
+        tellomiReleasesForcedPin({
+          userScrolling: pointerIsDown || Date.now() < userScrollingUntil,
+          newestVisibleBefore: before,
+          newestVisibleNow: now,
+          forcedPinDate: forced,
+        })
+      ) {
+        callbacksRef.current.onRelease();
       }
-      const pinnedMessageId = pinnedMessageIdsByMessageIds.get(messageId);
-      if (pinnedMessageId == null) {
-        return;
+      callbacksRef.current.onNewestVisibleDate(now);
+    };
+
+    const scheduleMeasure = () => {
+      if (frame == null) {
+        frame = requestAnimationFrame(measure);
       }
+    };
 
-      intersectionObserver.observe(node);
-    }
-
-    function removed(node: Node, messageId: string | null) {
-      if (messageId == null || !isHTMLElement(node)) {
-        return;
+    const noteUserInput = () => {
+      userScrollingUntil = Date.now() + USER_SCROLL_WINDOW_MS;
+    };
+    const handlePointerDown = () => {
+      pointerIsDown = true;
+      noteUserInput();
+    };
+    const handlePointerUp = () => {
+      pointerIsDown = false;
+      noteUserInput();
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (SCROLL_KEYS.has(event.key)) {
+        noteUserInput();
       }
-      const pinnedMessageId = pinnedMessageIdsByMessageIds.get(messageId);
-      if (pinnedMessageId == null) {
-        return;
-      }
+    };
 
-      pinnedMessageIdVisibility.delete(pinnedMessageId);
-      intersectionObserver.unobserve(node);
-    }
+    scroller.addEventListener('scroll', scheduleMeasure, { passive: true });
+    scroller.addEventListener('wheel', noteUserInput, { passive: true });
+    scroller.addEventListener('touchmove', noteUserInput, { passive: true });
+    scroller.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('pointerup', handlePointerUp);
+    document.addEventListener('keydown', handleKeyDown);
 
-    const mutationObserver = new MutationObserver(mutations => {
-      for (const mutation of mutations) {
-        if (mutation.type === 'attributes') {
-          removed(mutation.target, mutation.oldValue ?? '');
-          added(mutation.target, getNodeDataMessageId(mutation.target));
-        } else if (mutation.type === 'childList') {
-          for (const removedNode of mutation.removedNodes) {
-            removed(removedNode, getNodeDataMessageId(removedNode));
-          }
-          for (const addedNode of mutation.addedNodes) {
-            added(addedNode, getNodeDataMessageId(addedNode));
-          }
-        }
-      }
-    });
+    // Messages come and go as the timeline loads more of the chat
+    const mutationObserver = new MutationObserver(scheduleMeasure);
+    mutationObserver.observe(messagesList, { childList: true });
 
-    mutationObserver.observe(messagesList, {
-      childList: true,
-      attributes: true,
-      attributeOldValue: true,
-      attributeFilter: ['data-message-id'],
-    });
-
-    for (const child of messagesList.children) {
-      added(child, getNodeDataMessageId(child));
-    }
+    measure();
 
     return () => {
+      if (frame != null) {
+        cancelAnimationFrame(frame);
+      }
+      scroller.removeEventListener('scroll', scheduleMeasure);
+      scroller.removeEventListener('wheel', noteUserInput);
+      scroller.removeEventListener('touchmove', noteUserInput);
+      scroller.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('pointerup', handlePointerUp);
+      document.removeEventListener('keydown', handleKeyDown);
       mutationObserver.disconnect();
-      intersectionObserver.disconnect();
     };
-  }, [unsortedPins]);
+  }, [enabled]);
 }
 
+// Keyed by chat: which pin was chosen by a tap, and what was last on screen, are about one chat only.
 export const SmartPinnedMessagesBar = memo(function SmartPinnedMessagesBar() {
-  const i18n = useSelector(getIntl);
   const conversationId = useSelector(getSelectedConversationId);
   strictAssert(
     conversationId != null,
     'PinnedMessagesBar should only be rendered in selected conversation'
   );
-
-  const conversationSelector = useSelector(getConversationSelector);
-  const conversation = conversationSelector(conversationId);
-  strictAssert(conversation != null, 'Missing conversation');
-
-  const conversationIsReady = useSelector(getConversationIsReady);
-  const pins = useSelector(selectPins);
-  const canPinMessages = getCanPinMessages(conversation);
-
-  const { onPinnedMessageRemove, scrollToMessage } = useConversationsActions();
-  const { pushPanelForConversation } = useNavActions();
-
-  const [current, setCurrent] = useState(() => {
-    return getLastPinId(pins);
-  });
-
-  const [prevPins, setPrevPins] = useState(pins);
-  if (pins !== prevPins) {
-    // Needed for `expectedCurrent` which might update `current` in the same render
-    setPrevPins(pins);
-  }
-
-  const expectedCurrent = useMemo(() => {
-    const latestPinId = getLastPinId(pins);
-
-    // If `current` is null, use the latest pin id if we have one.
-    if (current == null) {
-      return latestPinId;
-    }
-
-    // If `current` is already the latest pin id, leave it.
-    if (current === latestPinId) {
-      return current;
-    }
-
-    // Update `current` if it no longer exists.
-    const hasCurrent = pins.some(pin => pin.id === current);
-    if (!hasCurrent) {
-      return latestPinId;
-    }
-
-    // Update `current` if it was previously the latest and there's a new latest.
-    const prevLatestPinId = getLastPinId(prevPins);
-    if (prevLatestPinId === current && latestPinId != null) {
-      return latestPinId;
-    }
-
-    return current;
-  }, [current, pins, prevPins]);
-
-  if (current !== expectedCurrent) {
-    setCurrent(expectedCurrent);
-  }
-
-  const handleCurrentChange = useCallback(
-    (pinnedMessageId: PinnedMessageId) => {
-      setCurrent(pinnedMessageId);
-    },
-    []
-  );
-
-  const handlePinGoTo = useCallback(
-    (messageId: string) => {
-      scrollToMessage(conversationId, messageId);
-      if (current == null) {
-        return;
-      }
-
-      const updatedCurrent = getPrevPinId(pins, current) ?? getLastPinId(pins);
-      if (updatedCurrent != null) {
-        setCurrent(updatedCurrent);
-      }
-    },
-    [scrollToMessage, conversationId, pins, current]
-  );
-
-  const handlePinRemove = useCallback(
-    (messageId: string) => {
-      onPinnedMessageRemove(messageId);
-    },
-    [onPinnedMessageRemove]
-  );
-
-  const handlePinsShowAll = useCallback(() => {
-    pushPanelForConversation({
-      type: PanelType.PinnedMessages,
-    });
-  }, [pushPanelForConversation]);
-
-  useTimelineIntersectionObserver(pins, nextCurrent => {
-    setCurrent(nextCurrent);
-  });
-
-  if (!conversationIsReady) {
-    return null;
-  }
-
   return (
-    <PinnedMessagesBar
-      i18n={i18n}
-      pins={pins}
-      current={current}
-      onCurrentChange={handleCurrentChange}
-      onPinGoTo={handlePinGoTo}
-      onPinRemove={handlePinRemove}
-      onPinsShowAll={handlePinsShowAll}
-      canPinMessages={canPinMessages}
+    <SmartPinnedMessagesBarForConversation
+      key={conversationId}
+      conversationId={conversationId}
     />
   );
 });
+
+const SmartPinnedMessagesBarForConversation = memo(
+  function SmartPinnedMessagesBarForConversation({
+    conversationId,
+  }: Readonly<{ conversationId: string }>) {
+    const i18n = useSelector(getIntl);
+
+    const conversationSelector = useSelector(getConversationSelector);
+    const conversation = conversationSelector(conversationId);
+    strictAssert(conversation != null, 'Missing conversation');
+
+    const conversationIsReady = useSelector(getConversationIsReady);
+    const allPins = useSelector(selectPins);
+    const forMeMessageIds = useSelector(getTellomiPinnedForMeMessageIds);
+    const canPinMessages = getCanPinMessages(conversation);
+
+    const { scrollToMessage, tellomiUnpinWithUndo } = useConversationsActions();
+    const { pushPanelForConversation } = useNavActions();
+    const { hiddenAt, hide } = useTellomiPinnedBarHide(conversationId);
+
+    // Pins that were unpinned and wait on "Undo", or were sent and are not gone yet, are not on the bar
+    const heldMessageIds = useSyncExternalStore(
+      tellomiPinUnpins.subscribe,
+      tellomiPinUnpins.getSnapshot
+    );
+    useEffect(() => {
+      tellomiPinUnpins.prune(new Set(allPins.map(pin => pin.message.id)));
+    }, [allPins]);
+
+    const shownPins = useMemo(
+      () => allPins.filter(pin => !heldMessageIds.has(pin.message.id)),
+      [allPins, heldMessageIds]
+    );
+    const pinDates = useMemo(
+      () => shownPins.map(pin => pin.message.receivedAtCounter),
+      [shownPins]
+    );
+    const isHidden = isTellomiPinnedBarHidden(hiddenAt, pinDates);
+    const pins = useMemo(
+      () => (isHidden ? [] : shownPins),
+      [isHidden, shownPins]
+    );
+
+    // A pin chosen by a tap stays until the user lets go of it by scrolling; otherwise the bar follows the timeline
+    const [forcedPinId, setForcedPinId] = useState<PinnedMessageId | null>(
+      null
+    );
+    const [newestVisibleDate, setNewestVisibleDate] = useState<number | null>(
+      null
+    );
+
+    const forcedIndex = pins.findIndex(pin => pin.id === forcedPinId);
+    let currentIndex: number;
+    if (pins.length === 0) {
+      currentIndex = -1;
+    } else if (forcedIndex >= 0) {
+      currentIndex = forcedIndex;
+    } else if (newestVisibleDate == null) {
+      currentIndex = pins.length - 1;
+    } else {
+      currentIndex = tellomiPinFor(
+        pins.map(pin => pin.message.receivedAtCounter),
+        newestVisibleDate
+      );
+    }
+    const current = pins[currentIndex]?.id ?? null;
+    const forcedPinDate =
+      forcedIndex >= 0
+        ? (pins[forcedIndex]?.message.receivedAtCounter ?? null)
+        : null;
+
+    const handleRelease = useCallback(() => {
+      setForcedPinId(null);
+    }, []);
+
+    useTimelineFollow({
+      enabled: pins.length > 0 && conversationIsReady,
+      forcedPinDate,
+      onNewestVisibleDate: setNewestVisibleDate,
+      onRelease: handleRelease,
+    });
+
+    const handleCurrentChange = useCallback(
+      (pinnedMessageId: PinnedMessageId) => {
+        setForcedPinId(pinnedMessageId);
+      },
+      []
+    );
+
+    // Tap: jump to the pin that is shown (highlighted), then show an older one; after the oldest, the newest again.
+    const handlePinGoTo = useCallback(
+      (messageId: string) => {
+        scrollToMessage(conversationId, messageId);
+        if (currentIndex < 0) {
+          return;
+        }
+        const next = pins[tellomiNextPinAfterTap(currentIndex, pins.length)];
+        if (next != null) {
+          setForcedPinId(next.id);
+        }
+      },
+      [scrollToMessage, conversationId, pins, currentIndex]
+    );
+
+    const handlePinUnpin = useCallback(
+      (messageId: string) => {
+        tellomiUnpinWithUndo([messageId]);
+      },
+      [tellomiUnpinWithUndo]
+    );
+
+    const handlePinHide = useCallback(() => {
+      if (pinDates.length > 0) {
+        hide(Math.max(...pinDates));
+      }
+    }, [hide, pinDates]);
+
+    const handlePinsShowAll = useCallback(() => {
+      pushPanelForConversation({
+        type: PanelType.PinnedMessages,
+      });
+    }, [pushPanelForConversation]);
+
+    // With one pin the × can take it back when it is for me only, or when this person may unpin in this chat
+    const canUnpin = canTellomiUnpin({
+      isPinnedForMe:
+        pins.length === 1 &&
+        forMeMessageIds.includes(pins[0]?.message.id ?? ''),
+      canPinForEveryone: canPinMessages,
+      isInactiveGroup:
+        conversation.type === 'group' && Boolean(conversation.terminated),
+    });
+
+    if (!conversationIsReady) {
+      return null;
+    }
+
+    return (
+      <PinnedMessagesBar
+        i18n={i18n}
+        pins={pins}
+        current={current}
+        onCurrentChange={handleCurrentChange}
+        onPinGoTo={handlePinGoTo}
+        onPinUnpin={handlePinUnpin}
+        onPinHide={handlePinHide}
+        onPinsShowAll={handlePinsShowAll}
+        canUnpin={canUnpin}
+      />
+    );
+  }
+);

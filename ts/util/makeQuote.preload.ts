@@ -62,6 +62,7 @@ export async function makeQuote(
       messageAttributes: quotedMessage,
       id: quoteId,
       i18n,
+      tellomiPinnerTitle: contact.getTitle(),
     }),
   };
 }

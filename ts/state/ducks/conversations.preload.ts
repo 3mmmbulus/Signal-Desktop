@@ -103,6 +103,7 @@ import {
   getMessagesByConversation,
   getPendingAvatarDownloadSelector,
   getAllConversations,
+  getTellomiPinnedForMeMessageIds,
 } from '../selectors/conversations.dom.ts';
 import { getIntl } from '../selectors/user.std.ts';
 import type {
@@ -250,6 +251,8 @@ import type {
 } from '../../types/PinnedMessage.std.ts';
 import { isTellomiPinnedForMe } from '../../types/PinnedMessage.std.ts';
 import { TellomiPinChoice } from '../../util/tellomiPinChoice.std.ts';
+import { TELLOMI_UNPIN_UNDO_MS } from '../../util/tellomiHeldUnpins.std.ts';
+import { TellomiUnpinCoordinator } from '../../util/tellomiUnpinCoordinator.std.ts';
 import type { ActionCreator, StateThunk } from '../types.std.ts';
 import { getPinnedMessagesLimit } from '../../util/pinnedMessages.dom.ts';
 import { getPinnedMessageExpiresAt } from '../../util/pinnedMessages.std.ts';
@@ -1229,6 +1232,8 @@ export const actions = {
   onPinnedMessagesChanged,
   onPinnedMessageAdd,
   onPinnedMessageRemove,
+  tellomiUnpinWithUndo,
+  tellomiUndoUnpin,
   openGiftBadge,
   removeAllConversations,
   removeConversation,
@@ -5274,31 +5279,109 @@ function onPinnedMessageAdd(
   };
 }
 
+async function removePinnedMessage(
+  dispatch: PinDispatch,
+  getState: () => RootStateType,
+  targetMessageId: string,
+  // Tellomi (ADR-0081 P3): when the pin was asked to be taken back, whether it was a pin for me only; none = look at the
+  // pins of the chat that is open.
+  tellomiForMeAtRequest?: boolean
+): Promise<void> {
+  const target = await getPinnedMessageTarget(targetMessageId);
+  if (target == null) {
+    throw new Error('onPinnedMessageRemove: Missing target message');
+  }
+  // Tellomi (ADR-0081 §4.3): unpinning a pin for me only touches only my own devices.
+  const tellomiForMe =
+    tellomiForMeAtRequest ??
+    getState().conversations.messagesByConversation[
+      target.conversationId
+    ]?.pinnedMessages.some(
+      pinnedMessage =>
+        pinnedMessage.messageId === targetMessageId &&
+        isTellomiPinnedForMe(pinnedMessage)
+    ) ??
+    false;
+  await conversationJobQueue.add({
+    type: conversationQueueJobEnum.enum.UnpinMessage,
+    ...target,
+    unpinnedAt: TimestampMs.now(),
+    isSyncOnly: tellomiForMe,
+    ...(tellomiForMe ? { tellomiForSelfOnly: true } : {}),
+  });
+  await DataWriter.deletePinnedMessageByMessageId(targetMessageId);
+  drop(pinnedMessagesCleanupService.trigger('onPinnedMessageRemove'));
+  dispatch(onPinnedMessagesChanged(target.conversationId));
+}
+
 function onPinnedMessageRemove(targetMessageId: string): StateThunk {
   return async (dispatch, getState) => {
-    const target = await getPinnedMessageTarget(targetMessageId);
-    if (target == null) {
-      throw new Error('onPinnedMessageRemove: Missing target message');
-    }
-    // Tellomi (ADR-0081 §4.3): unpinning a pin for me only touches only my own devices.
-    const tellomiForMe =
-      getState().conversations.messagesByConversation[
-        target.conversationId
-      ]?.pinnedMessages.some(
-        pinnedMessage =>
-          pinnedMessage.messageId === targetMessageId &&
-          isTellomiPinnedForMe(pinnedMessage)
-      ) ?? false;
-    await conversationJobQueue.add({
-      type: conversationQueueJobEnum.enum.UnpinMessage,
-      ...target,
-      unpinnedAt: TimestampMs.now(),
-      isSyncOnly: tellomiForMe,
-      ...(tellomiForMe ? { tellomiForSelfOnly: true } : {}),
+    await removePinnedMessage(dispatch, getState, targetMessageId);
+  };
+}
+
+// Tellomi (pinned-messages.md 3.5 / 3.6, ADR-0081 P3 / P4): taking pins back — the × on the bar, "Unpin" in a message's
+// menu, "Unpin all" in the list — doesn't happen at once: the pins leave the bar, "Unpinned · Undo" is offered for 5
+// seconds, and only then are they unpinned for real (`tellomiPinUnpins`). It outlives the chat view: leaving the chat
+// doesn't cancel it.
+export const tellomiPinUnpins = new TellomiUnpinCoordinator({
+  undoMs: TELLOMI_UNPIN_UNDO_MS,
+  send: async item => {
+    strictAssert(tellomiPinUnpinStore != null, 'Unpin without a store');
+    await removePinnedMessage(
+      tellomiPinUnpinStore.dispatch,
+      tellomiPinUnpinStore.getState,
+      item.messageId,
+      item.forMe
+    );
+  },
+  onHeld: messageIds => {
+    tellomiPinUnpinStore?.dispatch({
+      type: SHOW_TOAST,
+      payload: {
+        toastType: ToastType.TellomiPinUnpinned,
+        parameters: { messageIds },
+      },
     });
-    await DataWriter.deletePinnedMessageByMessageId(targetMessageId);
-    drop(pinnedMessagesCleanupService.trigger('onPinnedMessageRemove'));
-    dispatch(onPinnedMessagesChanged(target.conversationId));
+  },
+  onFailed: () => {
+    tellomiPinUnpinStore?.dispatch({
+      type: SHOW_TOAST,
+      payload: { toastType: ToastType.TellomiPinUnpinFailed },
+    });
+  },
+  setTimeout: (callback, ms) => setTimeout(callback, ms),
+});
+
+// oxlint-disable-next-line signal-desktop/enforce-type-alias-readonlydeep
+type PinDispatch = Parameters<
+  StateThunk<ShowToastActionType | PinnedMessagesReplace>
+>[0];
+
+let tellomiPinUnpinStore:
+  | { dispatch: PinDispatch; getState: () => RootStateType }
+  | undefined;
+
+function tellomiUnpinWithUndo(
+  targetMessageIds: ReadonlyArray<string>
+): StateThunk {
+  return (dispatch, getState) => {
+    tellomiPinUnpinStore = { dispatch, getState };
+    const forMeMessageIds = new Set(
+      getTellomiPinnedForMeMessageIds(getState())
+    );
+    tellomiPinUnpins.request(
+      targetMessageIds.map(messageId => ({
+        messageId,
+        forMe: forMeMessageIds.has(messageId),
+      }))
+    );
+  };
+}
+
+function tellomiUndoUnpin(targetMessageIds: ReadonlyArray<string>): StateThunk {
+  return () => {
+    tellomiPinUnpins.undo(targetMessageIds);
   };
 }
 

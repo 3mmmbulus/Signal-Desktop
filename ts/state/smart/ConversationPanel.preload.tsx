@@ -18,6 +18,7 @@ import { PanelType } from '../../types/Panels.std.ts';
 import { toLogFormat } from '../../types/errors.std.ts';
 import { SmartAllMedia } from './AllMedia.preload.tsx';
 import { SmartAllMediaHeader } from './AllMediaHeader.preload.tsx';
+import { SmartPinnedMessagesPanelTitle } from './PinnedMessagesPanelTitle.preload.tsx';
 import { SmartChatColorPicker } from './ChatColorPicker.preload.tsx';
 import { SmartContactDetail } from './ContactDetail.preload.tsx';
 import { SmartConversationDetails } from './ConversationDetails.preload.tsx';
@@ -314,6 +315,8 @@ const PanelContainer = forwardRef<HTMLDivElement, PanelPropsType>(
       info = <SmartAllMediaHeader />;
     } else if (panel.type === PanelType.StickerManager) {
       info = <SmartStickerManagerHeader />;
+    } else if (panel.type === PanelType.PinnedMessages) {
+      info = <SmartPinnedMessagesPanelTitle />;
     } else if (conversationTitle != null) {
       info = (
         <div className="ConversationPanel__header__info">

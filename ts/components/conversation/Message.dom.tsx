@@ -486,7 +486,8 @@ type MessageReactionsProps = {
   popperPreventOverflowModifier: () => Partial<PreventOverflowModifier>;
 };
 
-const MessageReactions = forwardRef(function MessageReactions(
+// Tellomi (ADR-0081 §九 P5): exported so a pin's chat event shows its reactions the same way.
+export const MessageReactions = forwardRef(function MessageReactions(
   {
     reactions,
     getPreferredBadge,

@@ -312,6 +312,14 @@ export const getTellomiRestriction = createSelector(
   (state: ItemsStateType) => state.tellomiRestriction
 );
 
+// Tellomi (pinned-messages.md 3.4, ADR-0081 P3): chat id -> the date of the newest pinned message when the pinned messages
+// bar was hidden on this device (see util/tellomiPinnedBar)
+export const getTellomiPinnedBarHidden = createSelector(
+  getItems,
+  (state: ItemsStateType): Readonly<Record<string, number>> =>
+    state.tellomiPinnedBarHidden ?? {}
+);
+
 export const getSeenPinMessageDisappearingMessagesWarningCount: StateSelector<number> =
   createSelector(
     getItems,

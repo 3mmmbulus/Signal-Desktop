@@ -260,6 +260,18 @@ function getToast(toastType: ToastType): AnyToast {
       return { toastType: ToastType.TapToViewExpiredOutgoing };
     case ToastType.TellomiLogoutNeedsNetwork:
       return { toastType: ToastType.TellomiLogoutNeedsNetwork };
+    case ToastType.TellomiPinUnpinned:
+      return {
+        toastType: ToastType.TellomiPinUnpinned,
+        parameters: { messageIds: ['a'] },
+      };
+    case ToastType.TellomiPinUnpinFailed:
+      return { toastType: ToastType.TellomiPinUnpinFailed };
+    case ToastType.TellomiPinBarHidden:
+      return {
+        toastType: ToastType.TellomiPinBarHidden,
+        parameters: { conversationId: 'a', previousHiddenAt: undefined },
+      };
     case ToastType.TransportError:
       return { toastType: ToastType.TransportError };
     case ToastType.TooManyMessagesToDeleteForEveryone:
@@ -369,6 +381,8 @@ export default {
     saveHeapSnapshot: action('saveHeapSnapshot'),
     onShowDebugLog: action('onShowDebugLog'),
     onUndoArchive: action('onUndoArchive'),
+    onTellomiUndoUnpin: action('onTellomiUndoUnpin'),
+    onTellomiUndoHidePins: action('onTellomiUndoHidePins'),
     retryCallQualitySurvey: action('retryCallQualitySurvey'),
     i18n,
     toastType: ToastType.AddingUserToGroup,

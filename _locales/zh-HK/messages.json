@@ -1466,6 +1466,54 @@
   "icu:PinnedMessagesBar__ActionsMenu__SeeAllMessages": {
     "messageformat": "查看所有訊息"
   },
+  "icu:TellomiPinnedBar__Title--Pinned": {
+    "messageformat": "釘選訊息"
+  },
+  "icu:TellomiPinnedBar__Title--Previous": {
+    "messageformat": "上一則釘選"
+  },
+  "icu:TellomiPinnedBar__Title--Numbered": {
+    "messageformat": "釘選訊息 #{number, number}"
+  },
+  "icu:TellomiPinnedBar__ShowAll__AccessibilityLabel": {
+    "messageformat": "查看所有釘選訊息"
+  },
+  "icu:TellomiPinnedBar__Unpin__AccessibilityLabel": {
+    "messageformat": "取消釘選"
+  },
+  "icu:TellomiPinnedBar__Hide__AccessibilityLabel": {
+    "messageformat": "隱藏釘選訊息"
+  },
+  "icu:TellomiPinnedBar__UnpinConfirm__Title": {
+    "messageformat": "要取消釘選這則訊息嗎？"
+  },
+  "icu:TellomiPinnedBar__UnpinConfirm__Unpin": {
+    "messageformat": "取消釘選"
+  },
+  "icu:TellomiPinUnpinned": {
+    "messageformat": "{count, plural, =1 {已取消釘選} other {已取消釘選 # 則訊息}}"
+  },
+  "icu:TellomiPinUnpinned__Undo": {
+    "messageformat": "復原"
+  },
+  "icu:TellomiPinUnpinFailed": {
+    "messageformat": "取消釘選失敗，該訊息仍保持釘選。"
+  },
+  "icu:TellomiPinnedPanel__Title": {
+    "messageformat": "{count, plural, other {# 則釘選訊息}}"
+  },
+  "icu:TellomiPinnedPanel__UnpinAll": {
+    "messageformat": "取消所有釘選"
+  },
+  "icu:TellomiPinnedPanel__Hide": {
+    "messageformat": "隱藏釘選訊息"
+  },
+  "icu:TellomiPinnedPanel__OnlyYou": {
+    "messageformat": "僅自己可見"
+  },
+  "icu:TellomiPinBarHidden": {
+    "messageformat": "釘選訊息已隱藏，有新的釘選時會再顯示"
+  },
   "icu:PinnedMessagesBar__MessagePreview__SymbolLabel--VoiceMessage": {
     "messageformat": "語音訊息"
   },

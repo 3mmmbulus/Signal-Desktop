@@ -535,6 +535,17 @@ export function getNotificationDataForMessage(
     const ourAci = itemStorage.user.getCheckedAci();
     const pinnedByMe = sourceServiceId === ourAci;
 
+    // Tellomi (ADR-0081 §九 P5): a pin's chat event deleted for everyone reads as any deleted message does
+    if (attributes.deletedForEveryone) {
+      return {
+        text: pinnedByMe
+          ? i18n('icu:message--deletedForEveryone--outgoing')
+          : i18n('icu:message--deletedForEveryone--incoming', {
+              name: findAndFormatContact(sourceServiceId).title,
+            }),
+      };
+    }
+
     // Tellomi (ADR-0081 §4.4): "×× pinned “…”", the same line as the chat event and the phones.
     return {
       emoji: Emoji.PUSHPIN,

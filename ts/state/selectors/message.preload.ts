@@ -111,6 +111,10 @@ import { isAdminDeleteSendEnabled } from '../../util/isAdminDeleteEnabled.dom.ts
 import { isAciString } from '../../util/isAciString.std.ts';
 import { isSignalConversation } from '../../util/isSignalConversation.dom.ts';
 import { canTellomiUnpin } from '../../util/tellomiPinChoice.std.ts';
+import {
+  isTellomiPinNotice,
+  isTellomiPinNoticeHidden,
+} from '../../util/tellomiPinNoticeActions.std.ts';
 import * as iterables from '../../util/iterables.std.ts';
 import { strictAssert } from '../../util/assert.std.ts';
 import { canEditMessage } from '../../util/canEditMessage.dom.ts';
@@ -267,7 +271,8 @@ export function getSource(
   message: Pick<ReadonlyMessageAttributesType, 'type' | 'source'>,
   ourNumber: string | undefined
 ): string | undefined {
-  if (isIncoming(message)) {
+  // Tellomi (ADR-0081 §九 P5): a pin's chat event is by whoever pinned
+  if (isIncoming(message) || isTellomiPinNotice(message)) {
     return message.source;
   }
   if (!isOutgoing(message)) {
@@ -281,7 +286,7 @@ export function getSourceServiceId(
   message: Pick<ReadonlyMessageAttributesType, 'type' | 'sourceServiceId'>,
   ourAci: AciString | undefined
 ): ServiceIdString | undefined {
-  if (isIncoming(message)) {
+  if (isIncoming(message) || isTellomiPinNotice(message)) {
     return message.sourceServiceId;
   }
   if (!isOutgoing(message)) {
@@ -2027,15 +2032,32 @@ export function isPinnedMessageNotification(
 
 function getPropsForPinnedMessageNotification(
   message: MessageWithUIFieldsType,
-  { conversationSelector }: GetPropsForBubbleOptions
+  options: GetPropsForBubbleOptions
 ): PinnedMessageNotificationData {
-  strictAssert(message.pinMessage, 'Missing pinMessage');
-  return {
+  const { conversationSelector, ourConversationId } = options;
+  // Tellomi (ADR-0081 §九 P5): a pin's chat event that was deleted for everyone has lost what it pinned (no
+  // `pinMessage`); the timeline skips it, and should it be drawn anyway it draws nothing
+  const isDeleted = isTellomiPinNoticeHidden(message);
+  const base = {
     sender: conversationSelector(message.sourceServiceId),
-    pinMessage: message.pinMessage,
-    tellomiSubject: message.tellomiPinSubject ?? null,
     expireTimer: message.expireTimer ?? null,
     expirationStartTimestamp: message.expirationStartTimestamp ?? null,
+  };
+  if (isDeleted || message.pinMessage == null) {
+    return { ...base, isDeleted: true };
+  }
+  return {
+    ...base,
+    isDeleted: false,
+    pinMessage: message.pinMessage,
+    tellomiSubject: message.tellomiPinSubject ?? null,
+    reactions: getReactionsForMessage(message, options),
+    selectedReaction: (
+      (message.reactions ?? []).find(re => re.fromId === ourConversationId) ??
+      {}
+    ).emoji,
+    canReact: canReact(message, ourConversationId, conversationSelector),
+    canReply: canReply(message, ourConversationId, conversationSelector),
   };
 }
 
@@ -2590,6 +2612,11 @@ function canReplyOrReact(
     return true;
   }
 
+  // Tellomi (ADR-0081 §九 P5, pinned-messages.md 3.7): a pin's chat event can be reacted to and replied to
+  if (isTellomiPinNotice(message)) {
+    return true;
+  }
+
   if (isStory(message)) {
     return (
       Boolean(message.canReplyToStory) && conversation.id !== ourConversationId
@@ -2680,7 +2707,12 @@ function getMessageCanDeleteForEveryone(
   }
 ): MessageCanDeleteForEveryoneResult {
   const { conversation, ourAci } = options;
-  const isDeletingOwnMessage = isOutgoing(message);
+  // Tellomi (ADR-0081 §九 P5): my pin's chat event is mine to delete for everyone
+  const isDeletingOwnMessage =
+    isOutgoing(message) ||
+    (isTellomiPinNotice(message) &&
+      ourAci != null &&
+      message.sourceServiceId === ourAci);
 
   if (!ourAci || conversation.terminated) {
     return {
@@ -2692,7 +2724,7 @@ function getMessageCanDeleteForEveryone(
 
   // For outgoing messages, we must have actually sent to someone
   if (
-    isDeletingOwnMessage &&
+    isOutgoing(message) &&
     !someSendStatus(message.sendStateByConversationId ?? {}, isSent)
   ) {
     return {

@@ -32,6 +32,10 @@ import type { RenderItemProps } from './TimelineItem.preload.tsx';
 import { getCallHistorySelector } from '../selectors/callHistory.std.ts';
 import { getCallIdFromEra } from '../../util/callDisposition.preload.ts';
 import { mapItemsIntoCollapseSets } from '../../util/CollapseSet.std.ts';
+import {
+  isTellomiPinNoticeHidden,
+  withoutTellomiHiddenItems,
+} from '../../util/tellomiPinNoticeActions.std.ts';
 import type { CollapseSet } from '../../util/CollapseSet.std.ts';
 import { isSignalConversation } from '../../util/isSignalConversation.dom.ts';
 import { getIsInFullScreenCall } from '../selectors/isInFullScreenCall.std.ts';
@@ -135,17 +139,27 @@ export const SmartTimeline = memo(function SmartTimeline({
   const midnightToday = getMidnight(Date.now());
   const { collapseSets, updatedOldestLastSeenIndex, updatedScrollToIndex } =
     useMemo(() => {
+      // Tellomi (ADR-0081 §九 P5): a pin's chat event deleted for everyone leaves nothing behind
+      const shown = withoutTellomiHiddenItems({
+        items,
+        isHidden: itemId => {
+          const message = messages[itemId];
+          return message != null && isTellomiPinNoticeHidden(message);
+        },
+        oldestUnseenIndex: oldestUnseenIndex ?? null,
+        scrollToIndex: scrollToIndex ?? null,
+      });
       const result = mapItemsIntoCollapseSets({
         activeCall,
         allowMultidaySets: false,
         callHistorySelector,
         callSelector,
         getCallIdFromEra,
-        items,
+        items: shown.items,
         messages,
         midnightToday,
-        oldestUnseenIndex,
-        scrollToIndex,
+        oldestUnseenIndex: shown.oldestUnseenIndex,
+        scrollToIndex: shown.scrollToIndex,
       });
 
       const { resultUnseenIndex, resultScrollToIndex } = result;

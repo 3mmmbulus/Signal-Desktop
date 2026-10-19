@@ -96,6 +96,7 @@ import { longRunningTaskWrapper } from '../../util/longRunningTaskWrapper.dom.ts
 import { drop } from '../../util/drop.std.ts';
 import { strictAssert } from '../../util/assert.std.ts';
 import { makeQuote } from '../../util/makeQuote.preload.ts';
+import { isTellomiPinNotice } from '../../util/tellomiPinNoticeActions.std.ts';
 import { sendEditedMessage as doSendEditedMessage } from '../../util/sendEditedMessage.preload.ts';
 import { Sound, SoundType } from '../../util/Sound.std.ts';
 import {
@@ -944,7 +945,11 @@ export function setQuoteByMessageId(
     const state = getState();
     if (
       !message ||
-      !isNormalBubble(message.attributes) ||
+      // Tellomi (ADR-0081 §九 P5): a pin's chat event can be replied to
+      !(
+        isNormalBubble(message.attributes) ||
+        isTellomiPinNotice(message.attributes)
+      ) ||
       !canReply(
         message.attributes,
         window.ConversationController.getOurConversationIdOrThrow(),

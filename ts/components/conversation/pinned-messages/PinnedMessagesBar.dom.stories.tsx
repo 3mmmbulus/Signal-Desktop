@@ -90,6 +90,7 @@ const PIN_3: Pin = {
 function Template(props: {
   defaultCurrent: PinnedMessageId;
   pins: ReadonlyArray<Pin>;
+  canUnpin?: boolean;
 }) {
   const [current, setCurrent] = useState(props.defaultCurrent);
   return (
@@ -99,12 +100,31 @@ function Template(props: {
       onCurrentChange={setCurrent}
       pins={props.pins}
       onPinGoTo={action('onPinGoTo')}
-      onPinRemove={action('onPinRemove')}
+      onPinUnpin={action('onPinUnpin')}
+      onPinHide={action('onPinHide')}
       onPinsShowAll={action('onPinsShowAll')}
-      canPinMessages
+      canUnpin={props.canUnpin ?? true}
     />
   );
 }
+
+function mockPin(id: number, body: string): Pin {
+  return {
+    id: id as PinnedMessageId,
+    sender: { id: `conversation-${id}`, title: 'Jamie', isMe: false },
+    message: mockPinMessage(id, { text: { body, bodyRanges: [] } }),
+  };
+}
+
+const MANY_PINS: ReadonlyArray<Pin> = [
+  mockPin(11, 'Pinned first, the oldest message'),
+  mockPin(12, 'Second'),
+  mockPin(13, 'Third'),
+  mockPin(14, 'Fourth'),
+  mockPin(15, 'Fifth'),
+  mockPin(16, 'Sixth'),
+  mockPin(17, 'Seventh, the newest message'),
+];
 
 function Stack(props: { children: ReactNode }) {
   return (
@@ -120,6 +140,27 @@ export function Default(): JSX.Element {
       <Template defaultCurrent={PIN_1.id} pins={[PIN_1]} />
       <Template defaultCurrent={PIN_2.id} pins={[PIN_1, PIN_2]} />
       <Template defaultCurrent={PIN_3.id} pins={[PIN_1, PIN_2, PIN_3]} />
+    </Stack>
+  );
+}
+
+// Tellomi (pinned-messages.md 3.4): at most three segments of the line, the shown one in the middle, the side with
+// more pins fading; titles are "Pinned message #N" except the newest.
+export function ManyPins(): JSX.Element {
+  return (
+    <Stack>
+      {MANY_PINS.map(pin => (
+        <Template key={pin.id} defaultCurrent={pin.id} pins={MANY_PINS} />
+      ))}
+    </Stack>
+  );
+}
+
+// Tellomi: no permission to unpin, so the × only hides the bar on this device
+export function CannotUnpin(): JSX.Element {
+  return (
+    <Stack>
+      <Template defaultCurrent={PIN_1.id} pins={[PIN_1]} canUnpin={false} />
     </Stack>
   );
 }

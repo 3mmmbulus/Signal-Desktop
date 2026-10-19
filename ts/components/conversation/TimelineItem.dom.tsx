@@ -500,7 +500,17 @@ export const TimelineItem = memo(function TimelineItem({
         <PinnedMessageNotification
           {...item.data}
           i18n={i18n}
+          id={id}
+          conversationId={conversationId}
+          isSelectMode={isSelectMode}
+          theme={theme}
+          containerElementRef={containerElementRef}
+          getPreferredBadge={getPreferredBadge}
           onScrollToPinnedMessage={scrollToPinnedMessage}
+          reactToMessage={reducedProps.reactToMessage}
+          renderReactionPicker={reducedProps.renderReactionPicker}
+          setQuoteByMessageId={reducedProps.setQuoteByMessageId}
+          toggleDeleteMessagesModal={reducedProps.toggleDeleteMessagesModal}
         />
       );
     } else if (item.type === 'pollTerminate') {

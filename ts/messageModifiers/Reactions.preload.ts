@@ -9,6 +9,10 @@ import type {
   MessageReactionType,
   ReadonlyMessageAttributesType,
 } from '../model-types.d.ts';
+import {
+  isTellomiPinNotice,
+  isTellomiPinNoticeOfMine,
+} from '../util/tellomiPinNoticeActions.std.ts';
 import { MessageModel } from '../models/messages.preload.ts';
 import { ReactionSource } from '../reactions/ReactionSource.std.ts';
 import { DataReader, DataWriter } from '../sql/Client.preload.ts';
@@ -233,6 +237,11 @@ export function isMessageAMatchForReaction({
     }
 
     return isSent(sendState.status);
+  }
+
+  // Tellomi (ADR-0081 §九 P5): a pin's chat event is reacted to like an incoming message, by any member
+  if (isTellomiPinNotice(message)) {
+    return true;
   }
 
   // Only incoming, outgoing, and story messages can be reacted to
@@ -530,7 +539,15 @@ export async function handleReaction(
         reactions.push(reactionToAdd);
         message.set({ reactions });
 
-        if (isOutgoing(message.attributes) && isFromSomeoneElse) {
+        // Tellomi (ADR-0081 §九 P5): a reaction to my pin's chat event notifies too, as for my own message
+        if (
+          (isOutgoing(message.attributes) ||
+            isTellomiPinNoticeOfMine(
+              message.attributes,
+              itemStorage.user.getCheckedAci()
+            )) &&
+          isFromSomeoneElse
+        ) {
           drop(
             maybeNotify({
               kind: 'reaction',

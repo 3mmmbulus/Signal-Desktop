@@ -6,6 +6,7 @@ import { assert } from 'chai';
 import {
   TellomiPinChoice,
   canTellomiUnpin,
+  canTellomiUnpinAll,
   getTellomiPinChoices,
 } from '../../util/tellomiPinChoice.std.ts';
 
@@ -100,6 +101,68 @@ describe('tellomiPinChoice', () => {
           isPinnedForMe: false,
           canPinForEveryone: true,
           isInactiveGroup: true,
+        })
+      );
+    });
+  });
+
+  describe('canTellomiUnpinAll', () => {
+    const forMe = { isPinnedForMe: true };
+    const forChat = { isPinnedForMe: false };
+
+    it('is "Unpin all" when each pin can be unpinned', () => {
+      assert.isTrue(
+        canTellomiUnpinAll({
+          pins: [forChat, forMe, forChat],
+          canPinForEveryone: true,
+          isInactiveGroup: false,
+        })
+      );
+    });
+
+    it('is "Hide" for a member without the permission who has any other pin', () => {
+      assert.isFalse(
+        canTellomiUnpinAll({
+          pins: [forMe, forChat],
+          canPinForEveryone: false,
+          isInactiveGroup: false,
+        })
+      );
+    });
+
+    it('is "Unpin all" without the permission when every pin is for me only', () => {
+      assert.isTrue(
+        canTellomiUnpinAll({
+          pins: [forMe, forMe],
+          canPinForEveryone: false,
+          isInactiveGroup: false,
+        })
+      );
+    });
+
+    it('is "Hide" in a group that is over, except for pins for me only', () => {
+      assert.isFalse(
+        canTellomiUnpinAll({
+          pins: [forChat],
+          canPinForEveryone: true,
+          isInactiveGroup: true,
+        })
+      );
+      assert.isTrue(
+        canTellomiUnpinAll({
+          pins: [forMe],
+          canPinForEveryone: true,
+          isInactiveGroup: true,
+        })
+      );
+    });
+
+    it('has nothing to unpin without pins', () => {
+      assert.isFalse(
+        canTellomiUnpinAll({
+          pins: [],
+          canPinForEveryone: true,
+          isInactiveGroup: false,
         })
       );
     });
