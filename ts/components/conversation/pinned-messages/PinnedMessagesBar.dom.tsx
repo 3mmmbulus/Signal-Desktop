@@ -22,6 +22,7 @@ import { stripNewlinesForLeftPane } from '../../../util/stripNewlinesForLeftPane
 import { usePrevious } from '../../../hooks/usePrevious.std.ts';
 import {
   getTellomiPinnedBarButton,
+  getTellomiPinnedBarCloseAction,
   getTellomiPinnedBarSegments,
   getTellomiPinnedBarTitle,
 } from '../../../util/tellomiPinnedBar.std.ts';
@@ -485,7 +486,7 @@ function SideButton(props: {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const handleClose = useCallback(() => {
-    if (canUnpin) {
+    if (getTellomiPinnedBarCloseAction(canUnpin) === 'unpin') {
       setConfirmOpen(true);
     } else {
       onPinHide();
