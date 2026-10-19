@@ -20,7 +20,7 @@
       "debugLogUrl": "https://chat.tellomi.app/debuglogs"
     },
     "cn": {
-      "enabled": false,
+      "enabled": true,
       "serverUrl": "https://chat.tellomi.cn",
       "libsignalHostname": "grpc.chat.tellomi.cn",
       "storageUrl": "https://storage.tellomi.cn",

@@ -1,6 +1,7 @@
 // Copyright 2020 Signal Messenger, LLC
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import { installRegionTargetBridge } from './util/tellomiRegionTargetBridge.preload.ts';
 import lodash from 'lodash';
 import { createRoot } from 'react-dom/client';
 import PQueue from 'p-queue';
@@ -600,6 +601,7 @@ async function startApp(): Promise<void> {
     restoreRemoteConfigFromStorage({
       storage: itemStorage,
     });
+    installRegionTargetBridge();
 
     MessageCache.install();
     initMessageCleanup();

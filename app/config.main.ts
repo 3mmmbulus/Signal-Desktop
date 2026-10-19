@@ -22,6 +22,10 @@ import {
   selectStartupRegion,
 } from '../ts/util/tellomiRegion.std.ts';
 import type { RegionIdType } from '../ts/util/tellomiRegion.std.ts';
+import {
+  getRegionStatePath,
+  readRegionState,
+} from './tellomiRegionStore.main.ts';
 
 const log = createLogger('config');
 
@@ -77,7 +81,10 @@ const config: Config = require('config');
 function applyStartupRegion(): RegionIdType {
   const target = config as unknown as Record<string, unknown>;
   const regions = parseRegions(target.regions);
-  const id = selectStartupRegion(regions);
+  // Tellomi (REGION_PROFILE §6.2): the region the remote-config switch last confirmed with a probe
+  // (app/tellomiRegionStore.main.ts). No file / disabled region = global.
+  const remembered = readRegionState(getRegionStatePath(target)).region;
+  const id = selectStartupRegion(regions, remembered);
   applyRegionEndpoints(target, getRegionEndpoints(regions, id));
   log.info(`region ${id} (enabled: ${getEnabledRegions(regions).join(', ')})`);
   return id;

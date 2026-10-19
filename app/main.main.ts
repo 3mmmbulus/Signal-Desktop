@@ -56,6 +56,11 @@ import './startup_config.main.ts';
 import type { RendererConfigType } from '../ts/types/RendererConfig.std.ts';
 import { rendererConfigSchema } from '../ts/types/RendererConfig.std.ts';
 import config, { region } from './config.main.ts';
+import { parseRegions } from '../ts/util/tellomiRegion.std.ts';
+import {
+  getRegionStatePath,
+  startRegionTargetService,
+} from './tellomiRegionStore.main.ts';
 import {
   Environment,
   getEnvironment,
@@ -2147,6 +2152,18 @@ app.on('ready', async () => {
     log,
     config.get<string>('updatesUrl')
   );
+
+  // Tellomi (REGION_PROFILE §6.2): remote-config driven region switch; applies on next start.
+  if (region !== undefined && config.has('regions')) {
+    startRegionTargetService({
+      path: getRegionStatePath(config as unknown as Record<string, unknown>),
+      regions: parseRegions(config.get('regions')),
+      startupRegion: region,
+      certificateAuthority: config.has('certificateAuthority')
+        ? config.get<string>('certificateAuthority')
+        : undefined,
+    });
+  }
 
   if (getEnvironment() !== Environment.Test) {
     installFileHandler({
