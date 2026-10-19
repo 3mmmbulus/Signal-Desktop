@@ -16,10 +16,6 @@ import { isGroupV2, isMe } from './whatTypeOfConversation.dom.ts';
 import { isSignalConversation } from './isSignalConversation.dom.ts';
 import { getSourceServiceId } from '../messages/sources.preload.ts';
 import { SignalService as Proto } from '../protobuf/index.std.ts';
-import {
-  isTellomiPinNotice,
-  isTellomiPinNoticeDeleteAllowed,
-} from './tellomiPinNoticeActions.std.ts';
 
 export type DeleteForEveryoneMessage = Pick<
   ReadonlyMessageAttributesType,
@@ -152,19 +148,6 @@ export function canSendDeleteForEveryone(
     return { ok: true, needsAdminDelete: false };
   }
 
-  // Tellomi (ADR-0081 §九 P5): only the pinner takes a pin's chat event away from everyone
-  if (
-    !isTellomiPinNoticeDeleteAllowed({
-      isPinNotice: isTellomiPinNotice(targetMessage),
-      isAdminDelete: true,
-    })
-  ) {
-    return {
-      ok: false,
-      reason: 'pin notice can only be deleted by the pinner',
-    };
-  }
-
   // Admin delete for group messages
   const adminCheck = canUseAdminDelete({
     targetConversation,
@@ -225,18 +208,6 @@ export function canRetrySendDeleteForEveryone(
     });
   }
 
-  if (
-    !isTellomiPinNoticeDeleteAllowed({
-      isPinNotice: isTellomiPinNotice(targetMessage),
-      isAdminDelete: true,
-    })
-  ) {
-    return {
-      ok: false,
-      reason: 'pin notice can only be deleted by the pinner',
-    };
-  }
-
   return canUseAdminDelete({
     targetConversation,
     isDeleterGroupAdmin,
@@ -282,19 +253,6 @@ export function canReceiveDeleteForEveryone(
       messageAge,
       gracePeriodMs: MESSAGE_SEND_GRACE_PERIOD,
     });
-  }
-
-  // Tellomi (ADR-0081 §九 P5): a pin's chat event is deleted for everyone by the pinner only
-  if (
-    !isTellomiPinNoticeDeleteAllowed({
-      isPinNotice: isTellomiPinNotice(targetMessage),
-      isAdminDelete: true,
-    })
-  ) {
-    return {
-      ok: false,
-      reason: 'pin notice can only be deleted by the pinner',
-    };
   }
 
   const isDeleterGroupAdmin = isMemberGroupAdmin(

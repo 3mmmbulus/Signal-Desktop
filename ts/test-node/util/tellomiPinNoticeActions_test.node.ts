@@ -4,12 +4,12 @@
 import { assert } from 'chai';
 
 import {
-  getTellomiPinNoticeDisplay,
   getTellomiPinNoticeMenuItems,
   getTellomiPinNoticeQuoteText,
   isTellomiPinNotice,
-  isTellomiPinNoticeDeleteAllowed,
+  isTellomiPinNoticeHidden,
   isTellomiPinNoticeOfMine,
+  withoutTellomiHiddenItems,
 } from '../../util/tellomiPinNoticeActions.std.ts';
 import type { ServiceIdString } from '../../types/ServiceId.std.ts';
 import i18n from './i18n.node.ts';
@@ -74,52 +74,74 @@ describe('tellomiPinNoticeActions', () => {
     );
   });
 
-  it('a group admin can not delete someone else’s pin line for everyone', () => {
-    assert.isFalse(
-      isTellomiPinNoticeDeleteAllowed({
-        isPinNotice: true,
-        isAdminDelete: true,
+  it('a pin line deleted for everyone is hidden — whoever deleted it; nothing else is', () => {
+    assert.isTrue(
+      isTellomiPinNoticeHidden({
+        type: 'pinned-message-notification',
+        deletedForEveryone: true,
       })
     );
-    assert.isTrue(
-      isTellomiPinNoticeDeleteAllowed({
-        isPinNotice: true,
-        isAdminDelete: false,
-      }),
-      'the pinner can, in the usual time limit'
+    assert.isFalse(
+      isTellomiPinNoticeHidden({ type: 'pinned-message-notification' })
     );
-    assert.isTrue(
-      isTellomiPinNoticeDeleteAllowed({
-        isPinNotice: false,
-        isAdminDelete: true,
-      }),
-      'messages are as before'
+    assert.isFalse(
+      isTellomiPinNoticeHidden({ type: 'incoming', deletedForEveryone: true }),
+      'a deleted message still shows its placeholder'
     );
   });
 
-  it('a pin line that was deleted for everyone reads as a deleted message, even after it lost what it pinned', () => {
-    assert.equal(
-      getTellomiPinNoticeDisplay({
-        deletedForEveryone: false,
-        hasPinMessage: true,
-      }),
-      'pin'
-    );
-    assert.equal(
-      getTellomiPinNoticeDisplay({
-        deletedForEveryone: true,
-        hasPinMessage: false,
-      }),
-      'deleted'
-    );
-    assert.equal(
-      getTellomiPinNoticeDisplay({
-        deletedForEveryone: false,
-        hasPinMessage: false,
-      }),
-      'deleted',
-      'nothing to show of a notice without its pin, instead of crashing'
-    );
+  describe('withoutTellomiHiddenItems', () => {
+    const hidden = new Set(['h1', 'h2']);
+    const isHidden = (id: string) => hidden.has(id);
+
+    it('gives the same array back when nothing is hidden', () => {
+      const items = ['a', 'b', 'c'];
+      const result = withoutTellomiHiddenItems({
+        items,
+        isHidden,
+        oldestUnseenIndex: 1,
+        scrollToIndex: 2,
+      });
+      assert.strictEqual(result.items, items);
+      assert.strictEqual(result.oldestUnseenIndex, 1);
+      assert.strictEqual(result.scrollToIndex, 2);
+    });
+
+    it('drops the hidden ones and moves the indexes with them', () => {
+      const result = withoutTellomiHiddenItems({
+        items: ['a', 'h1', 'b', 'c'],
+        isHidden,
+        oldestUnseenIndex: 2,
+        scrollToIndex: 3,
+      });
+      assert.deepEqual(result.items, ['a', 'b', 'c']);
+      assert.strictEqual(result.oldestUnseenIndex, 1, 'b');
+      assert.strictEqual(result.scrollToIndex, 2, 'c');
+    });
+
+    it('an index on a hidden item moves to the next one shown, or to none', () => {
+      const result = withoutTellomiHiddenItems({
+        items: ['a', 'h1', 'b', 'h2'],
+        isHidden,
+        oldestUnseenIndex: 1,
+        scrollToIndex: 3,
+      });
+      assert.deepEqual(result.items, ['a', 'b']);
+      assert.strictEqual(result.oldestUnseenIndex, 1, 'b');
+      assert.isNull(result.scrollToIndex, 'nothing shown after it');
+    });
+
+    it('keeps no index as no index', () => {
+      const result = withoutTellomiHiddenItems({
+        items: ['h1', 'a'],
+        isHidden,
+        oldestUnseenIndex: null,
+        scrollToIndex: null,
+      });
+      assert.deepEqual(result.items, ['a']);
+      assert.isNull(result.oldestUnseenIndex);
+      assert.isNull(result.scrollToIndex);
+    });
   });
 
   it('the quote says who pinned in the third person, for my own pin too', () => {

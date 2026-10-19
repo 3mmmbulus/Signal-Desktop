@@ -53,28 +53,57 @@ export function getTellomiPinNoticeMenuItems({
   return items;
 }
 
-// Deleting for everyone goes by the ordinary time limit and belongs to the pinner only: a group admin can't take
-// someone else's pin line away from everyone (the admin delete is for messages).
-export function isTellomiPinNoticeDeleteAllowed({
-  isPinNotice,
-  isAdminDelete,
-}: Readonly<{
-  isPinNotice: boolean;
-  isAdminDelete: boolean;
-}>): boolean {
-  return !(isPinNotice && isAdminDelete);
+// A pin line deleted for everyone — by the pinner or by a group admin — leaves nothing behind in the chat (erel
+// 2026-10-19, after how Telegram behaves): no "deleted" placeholder. The row stays in the database, so the delete can
+// still be sent and retried, but the timeline skips it.
+export function isTellomiPinNoticeHidden(
+  message: Pick<ReadonlyMessageAttributesType, 'type' | 'deletedForEveryone'>
+): boolean {
+  return isTellomiPinNotice(message) && Boolean(message.deletedForEveryone);
 }
 
-// What a deleted pin line shows: after "Delete for everyone" the notice has lost what it pinned, and it reads as any
-// deleted message does; it keeps no button and no reactions.
-export function getTellomiPinNoticeDisplay({
-  deletedForEveryone,
-  hasPinMessage,
+// The timeline's ids without the hidden ones. The indexes into it (the oldest unseen message, the one to scroll to)
+// move with it; one that was on a hidden item moves to the next item shown, or to none. Nothing hidden: the same
+// array back, so what is memoized on it stays.
+export function withoutTellomiHiddenItems({
+  items,
+  isHidden,
+  oldestUnseenIndex,
+  scrollToIndex,
 }: Readonly<{
-  deletedForEveryone: boolean;
-  hasPinMessage: boolean;
-}>): 'pin' | 'deleted' {
-  return deletedForEveryone || !hasPinMessage ? 'deleted' : 'pin';
+  items: ReadonlyArray<string>;
+  isHidden: (id: string) => boolean;
+  oldestUnseenIndex: number | null;
+  scrollToIndex: number | null;
+}>): {
+  items: ReadonlyArray<string>;
+  oldestUnseenIndex: number | null;
+  scrollToIndex: number | null;
+} {
+  if (!items.some(isHidden)) {
+    return { items, oldestUnseenIndex, scrollToIndex };
+  }
+  const kept: Array<string> = [];
+  // newIndexAt[i] = where items[i], or the first item shown after it, lands
+  const newIndexAt: Array<number> = [];
+  for (const id of items) {
+    newIndexAt.push(kept.length);
+    if (!isHidden(id)) {
+      kept.push(id);
+    }
+  }
+  const move = (index: number | null): number | null => {
+    if (index == null) {
+      return null;
+    }
+    const moved = newIndexAt[index];
+    return moved != null && moved < kept.length ? moved : null;
+  };
+  return {
+    items: kept,
+    oldestUnseenIndex: move(oldestUnseenIndex),
+    scrollToIndex: move(scrollToIndex),
+  };
 }
 
 // The line a reply quotes, third person even for my own pin ("Alice pinned “See you at 8”"): it is sent along with the

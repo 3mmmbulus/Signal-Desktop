@@ -112,8 +112,8 @@ import { isAciString } from '../../util/isAciString.std.ts';
 import { isSignalConversation } from '../../util/isSignalConversation.dom.ts';
 import { canTellomiUnpin } from '../../util/tellomiPinChoice.std.ts';
 import {
-  getTellomiPinNoticeDisplay,
   isTellomiPinNotice,
+  isTellomiPinNoticeHidden,
 } from '../../util/tellomiPinNoticeActions.std.ts';
 import * as iterables from '../../util/iterables.std.ts';
 import { strictAssert } from '../../util/assert.std.ts';
@@ -2035,13 +2035,9 @@ function getPropsForPinnedMessageNotification(
   options: GetPropsForBubbleOptions
 ): PinnedMessageNotificationData {
   const { conversationSelector, ourConversationId } = options;
-  // Tellomi (ADR-0081 §九 P5): a pin's chat event that was deleted for everyone has lost what it pinned, so there is
-  // no `pinMessage`: it is shown as a deleted message, with nothing to react to
-  const isDeleted =
-    getTellomiPinNoticeDisplay({
-      deletedForEveryone: Boolean(message.deletedForEveryone),
-      hasPinMessage: message.pinMessage != null,
-    }) === 'deleted';
+  // Tellomi (ADR-0081 §九 P5): a pin's chat event that was deleted for everyone has lost what it pinned (no
+  // `pinMessage`); the timeline skips it, and should it be drawn anyway it draws nothing
+  const isDeleted = isTellomiPinNoticeHidden(message);
   const base = {
     sender: conversationSelector(message.sourceServiceId),
     expireTimer: message.expireTimer ?? null,

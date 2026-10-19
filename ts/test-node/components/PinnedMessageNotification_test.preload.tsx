@@ -21,7 +21,7 @@ import {
 import i18n from '../util/i18n.node.ts';
 
 // pinned-messages.md 3.7 (ADR-0081 §九 P5): the chat event's reactions sit centered under it, and one deleted for
-// everyone reads as a deleted message.
+// everyone leaves nothing behind (erel 2026-10-19).
 describe('<PinnedMessageNotification /> (ADR-0081 P5)', () => {
   const them = {
     id: 'them',
@@ -116,24 +116,17 @@ describe('<PinnedMessageNotification /> (ADR-0081 P5)', () => {
     );
   });
 
-  it('reads as a deleted message once deleted for everyone, with no button and no reactions', () => {
-    const theirs = render({
-      isDeleted: true,
-      sender: them,
-      expireTimer: null,
-      expirationStartTimestamp: null,
-    });
-    assert.include(theirs, 'Ann');
-    assert.include(theirs, 'deleted this message');
-    assert.notInclude(theirs, i18n('icu:PinnedMessageNotification__Button'));
-    assert.notInclude(theirs, 'pinned');
-
-    const mine = render({
-      isDeleted: true,
-      sender: me,
-      expireTimer: null,
-      expirationStartTimestamp: null,
-    });
-    assert.include(mine, i18n('icu:message--deletedForEveryone--outgoing'));
+  it('draws nothing once deleted for everyone — no "deleted" placeholder', () => {
+    for (const sender of [them, me]) {
+      assert.strictEqual(
+        render({
+          isDeleted: true,
+          sender,
+          expireTimer: null,
+          expirationStartTimestamp: null,
+        }),
+        ''
+      );
+    }
   });
 });

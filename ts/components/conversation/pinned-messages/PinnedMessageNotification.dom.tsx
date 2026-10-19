@@ -28,7 +28,7 @@ import { offsetDistanceModifier } from '../../../util/popperUtil.std.ts';
 import { useScrollerLock } from '../../../hooks/useScrollLock.dom.tsx';
 import { tw } from '../../../axo/tw.dom.tsx';
 
-// Tellomi (ADR-0081 §九 P5): a pin's chat event that was deleted for everyone has lost what it pinned.
+// Tellomi (ADR-0081 §九 P5): a pin's chat event that was deleted for everyone has lost what it pinned, and is not shown.
 export type PinnedMessageNotificationData = Readonly<
   {
     sender: ConversationType;
@@ -72,48 +72,16 @@ export type PinnedMessageNotificationProps = PinnedMessageNotificationData &
 
 export function PinnedMessageNotification(
   props: PinnedMessageNotificationProps
-): JSX.Element {
-  const {
-    i18n,
-    id,
-    conversationId,
-    isSelectMode,
-    sender,
-    toggleDeleteMessagesModal,
-  } = props;
+): JSX.Element | null {
+  const { id, conversationId, toggleDeleteMessagesModal } = props;
 
   const onDeleteMessage = useCallback(() => {
     toggleDeleteMessagesModal({ conversationId, messageIds: [id] });
   }, [toggleDeleteMessagesModal, conversationId, id]);
 
   if (props.isDeleted) {
-    // Tellomi (ADR-0081 §九 P5): reads as any deleted message; only "delete for me" is left.
-    return (
-      <PinNoticeMenu
-        i18n={i18n}
-        isSelectMode={isSelectMode}
-        onDeleteMessage={onDeleteMessage}
-        onReact={null}
-        onReplyToMessage={null}
-      >
-        <SystemMessage
-          symbol="pin"
-          expireTimer={props.expireTimer}
-          expirationStartTimestamp={props.expirationStartTimestamp}
-          contents={
-            sender.isMe ? (
-              i18n('icu:message--deletedForEveryone--outgoing')
-            ) : (
-              <I18n
-                id="icu:message--deletedForEveryone--incoming"
-                components={{ name: <UserText text={sender.title} /> }}
-                i18n={i18n}
-              />
-            )
-          }
-        />
-      </PinNoticeMenu>
-    );
+    // Tellomi (ADR-0081 §九 P5, erel 2026-10-19): deleted for everyone, it leaves nothing behind in the chat
+    return null;
   }
 
   return <PinNoticeLive {...props} onDeleteMessage={onDeleteMessage} />;
