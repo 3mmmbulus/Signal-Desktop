@@ -1,6 +1,7 @@
 // Copyright 2025 Signal Messenger, LLC
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import { isTellomiPinNoticeOfMine } from '../util/tellomiPinNoticeActions.std.ts';
 import { createLogger } from '../logging/log.std.ts';
 
 import { isOutgoing } from './helpers.std.ts';
@@ -264,7 +265,9 @@ function doesReactionWarrantNotification({
   return (
     itemStorage.get('reaction-notification', true) &&
     reaction.source === ReactionSource.FromSomeoneElse &&
-    isOutgoing(targetMessage)
+    // Tellomi (ADR-0081 §九 P5): a reaction to my pin's chat event is told like one to my message
+    (isOutgoing(targetMessage) ||
+      isTellomiPinNoticeOfMine(targetMessage, itemStorage.user.getAci()))
   );
 }
 

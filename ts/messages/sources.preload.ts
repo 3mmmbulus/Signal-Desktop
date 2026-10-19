@@ -7,13 +7,16 @@ import { itemStorage } from '../textsecure/Storage.preload.ts';
 import type { ConversationModel } from '../models/conversations.preload.ts';
 import type { ServiceIdString } from '../types/ServiceId.std.ts';
 import { isIncoming, isOutgoing, isStory } from './helpers.std.ts';
+import { isTellomiPinNotice } from '../util/tellomiPinNoticeActions.std.ts';
 
 const log = createLogger('messages/sources');
 
+// Tellomi (ADR-0081 §九 P5): the author of a pin's chat event is whoever pinned, whichever side of the chat it is on —
+// not me, as for every other message that is not incoming.
 export function getSource(
   message: Pick<ReadonlyMessageAttributesType, 'type' | 'source'>
 ): string | undefined {
-  if (isIncoming(message) || isStory(message)) {
+  if (isIncoming(message) || isStory(message) || isTellomiPinNotice(message)) {
     return message.source;
   }
   if (!isOutgoing(message)) {
@@ -38,7 +41,7 @@ export function getSourceDevice(
 export function getSourceServiceId(
   message: Pick<ReadonlyMessageAttributesType, 'type' | 'sourceServiceId'>
 ): ServiceIdString | undefined {
-  if (isIncoming(message) || isStory(message)) {
+  if (isIncoming(message) || isStory(message) || isTellomiPinNotice(message)) {
     return message.sourceServiceId;
   }
 

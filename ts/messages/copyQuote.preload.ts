@@ -145,6 +145,10 @@ export const copyQuoteContentFromOriginal = async (
     messageAttributes: message.attributes,
     id: quote.id,
     i18n,
+    // Tellomi (ADR-0081 §九 P5): a reply to a pin's chat event shows this device's own line, not the sender's
+    tellomiPinnerTitle: window.ConversationController.get(
+      message.attributes.sourceServiceId
+    )?.getTitle(),
   });
 
   // oxlint-disable-next-line no-param-reassign

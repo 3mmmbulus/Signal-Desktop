@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import lodash from 'lodash';
+import { isTellomiPinNotice } from '../../util/tellomiPinNoticeActions.std.ts';
 import { ContentHint } from '@signalapp/libsignal-client';
 
 import * as Errors from '../../types/errors.std.ts';
@@ -153,7 +154,11 @@ export async function sendReaction(
     const { emoji, ...restOfPendingReaction } = pendingReaction;
 
     let targetAuthorAci: AciString;
-    if (isIncoming(message.attributes)) {
+    // Tellomi (ADR-0081 §九 P5): a pin's chat event is by whoever pinned, on whichever side
+    if (
+      isIncoming(message.attributes) ||
+      isTellomiPinNotice(message.attributes)
+    ) {
       strictAssert(
         isAciString(message.attributes.sourceServiceId),
         'incoming message does not have sender ACI'
