@@ -7,22 +7,13 @@ import { app } from 'electron';
 
 import { start } from './base_config.node.ts';
 import config from './config.main.ts';
+import { getUserDataOverride } from './userDataDir.main.ts';
 import * as Errors from '../ts/types/errors.std.ts';
-import OS from '../ts/util/os/osMain.node.ts';
 
-let userData: string | undefined;
 // Use separate data directory for benchmarks & development
-if (config.has('storagePath')) {
-  userData = String(config.get('storagePath'));
-} else if (config.has('storageProfile')) {
-  userData = join(
-    app.getPath('appData'),
-    // oxlint-disable-next-line typescript/restrict-template-expressions
-    `Signal-${config.get('storageProfile')}`
-  );
-} else if (OS.isAppImage()) {
-  userData = join(app.getPath('appData'), `${app.getName()} AppImage`);
-}
+const userData: string | undefined = getUserDataOverride(key =>
+  config.has(key) ? config.get(key) : undefined
+);
 
 if (userData !== undefined) {
   try {

@@ -38,6 +38,7 @@ import type {
 } from '@signalapp/libsignal-client/dist/net/chat/SingleOutboundMessage';
 
 import { assertDev, strictAssert } from '../util/assert.std.ts';
+import { rehostToCurrentRegion } from '../util/tellomiRegionTarget.std.ts';
 import * as durations from '../util/durations/index.std.ts';
 import type { ExplodePromiseResultType } from '../util/explodePromise.std.ts';
 import { explodePromise } from '../util/explodePromise.std.ts';
@@ -3292,7 +3293,12 @@ export async function getBackupMediaUploadForm({
       cdn,
       key,
       headers: Object.fromEntries(headers.entries()),
-      signedUploadLocation: signedUploadUrl.toString(),
+      // Tellomi (REGION_PROFILE §6.2): the server already answers with the root the client
+      // connected through; this keeps an old server's upload.tellomi.app out of a cn run too.
+      signedUploadLocation: rehostToCurrentRegion(
+        signedUploadUrl.toString(),
+        chatServiceUrl
+      ),
     };
   });
 }

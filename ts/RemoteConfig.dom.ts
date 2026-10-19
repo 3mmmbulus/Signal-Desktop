@@ -91,6 +91,8 @@ const ScalarKeys = [
   'global.gif.provider',
   'global.gif.proxyUrl',
   'global.groupsv2.groupSizeHardLimit',
+  // Tellomi (REGION_PROFILE §6.2): region the clients should move to ('' / 'global' / 'cn')
+  'global.tellomi.region.target',
   'global.groupsv2.maxGroupSize',
   'global.messageQueueTimeInSeconds',
   'global.nicknames.max',

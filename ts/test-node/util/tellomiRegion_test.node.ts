@@ -107,12 +107,11 @@ describe('Tellomi regions (tellomi/tellomi#1054)', () => {
       );
     });
 
-    it('cn stays disabled and mirrors global under tellomi.cn (ADR-0065 §7)', () => {
+    it('cn is shipped enabled and mirrors global under tellomi.cn (ADR-0065 §7)', () => {
       const regions = productionRegions();
-      assert.isFalse(
-        regions.cn.enabled,
-        'cn is enabled only after the ICP filing'
-      );
+      // tellomi.cn is filed (2026-10-19). Enabled only means a client may move there; the default
+      // stays global and moving needs global.tellomi.region.target (REGION_PROFILE §6.2).
+      assert.isTrue(regions.cn.enabled);
 
       const mirrored = JSON.parse(
         JSON.stringify(getRegionEndpoints(regions, 'global')).replaceAll(
@@ -210,15 +209,15 @@ describe('Tellomi regions (tellomi/tellomi#1054)', () => {
   });
 
   describe('selectStartupRegion / applyRegionEndpoints', () => {
-    it('never starts in a disabled region', () => {
+    it('starts in global unless an enabled region is remembered', () => {
       const regions = productionRegions();
-      assert.strictEqual(selectStartupRegion(regions, 'cn'), 'global');
       assert.strictEqual(selectStartupRegion(regions, 'mars'), 'global');
       assert.strictEqual(selectStartupRegion(regions), 'global');
+      assert.strictEqual(selectStartupRegion(regions, 'cn'), 'cn');
 
-      const cnEnabled = structuredClone(regions);
-      cnEnabled.cn.enabled = true;
-      assert.strictEqual(selectStartupRegion(cnEnabled, 'cn'), 'cn');
+      const cnDisabled = structuredClone(regions);
+      cnDisabled.cn.enabled = false;
+      assert.strictEqual(selectStartupRegion(cnDisabled, 'cn'), 'global');
     });
 
     it('replaces cdn as a whole, so no default CDN number survives', () => {
@@ -287,7 +286,8 @@ describe('Tellomi regions (tellomi/tellomi#1054)', () => {
     }
 
     it('probes only enabled regions', async () => {
-      const regions = productionRegions();
+      const regions = structuredClone(productionRegions());
+      regions.cn.enabled = false;
       assert.deepStrictEqual(getEnabledRegions(regions), ['global']);
 
       const { instance, probed } = selector(regions, {
@@ -306,8 +306,10 @@ describe('Tellomi regions (tellomi/tellomi#1054)', () => {
         callback(new Error('offline in tests'), '', 4);
       };
 
+      const cnDisabled = structuredClone(productionRegions());
+      cnDisabled.cn.enabled = false;
       const instance = new RegionSelector({
-        regions: productionRegions(),
+        regions: cnDisabled,
         initial: 'global',
         probe: createChatProbe({ timeoutMs: 1000, lookup }),
       });
@@ -400,7 +402,8 @@ describe('Tellomi regions (tellomi/tellomi#1054)', () => {
     });
 
     it('refuses a disabled region', () => {
-      const regions = productionRegions();
+      const regions = structuredClone(productionRegions());
+      regions.cn.enabled = false;
       assert.throws(
         () =>
           new RegionSelector({

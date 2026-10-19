@@ -104,7 +104,8 @@ export function getRegionEndpoints(
 }
 
 // The region to start in: the remembered one if it is still enabled, otherwise `global`.
-// Nothing remembers a region yet - that arrives with runtime switching (ADR-0065 §6.5, M6).
+// The remembered region comes from the remote-config switch (REGION_PROFILE §6.2,
+// app/tellomiRegionStore.main.ts); it takes effect on the next start.
 export function selectStartupRegion(
   regions: RegionsType,
   remembered?: string

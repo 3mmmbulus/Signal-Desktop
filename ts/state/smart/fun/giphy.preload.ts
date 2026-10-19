@@ -15,6 +15,7 @@ import {
   isGifCdnUrlOriginAllowed,
   isGiphyCdnUrlOrigin,
 } from '../../../util/gifCdnUrls.dom.ts';
+import { isUrlInCurrentRegion } from '../../../util/tellomiRegionTarget.std.ts';
 
 const BASE_API_URL = 'https://api.giphy.com';
 // Tellomi: our own Giphy key ("tellomi other" app, beta tier 100 calls/h; upgrade before launch). Ships in the client like upstream's.
@@ -26,8 +27,18 @@ const API_KEY = 'GvsTOXfPQO8DlO3skr26EsLGEotcXD4B';
 function getGiphyApiKey(): string {
   return RemoteConfig.getValue('global.gif.apiKey.desktop') || API_KEY;
 }
+// Tellomi (REGION_PROFILE §6.2 / §8): the remote value is per account, not per region; a proxy
+// under the other Tellomi root (contentproxy.tellomi.app while running on tellomi.cn) is ignored
+// and the region's own contentProxyUrl is used instead.
 function getGifProxyUrl(): string | undefined {
-  return RemoteConfig.getValue('global.gif.proxyUrl') || undefined;
+  const remote = RemoteConfig.getValue('global.gif.proxyUrl') || undefined;
+  if (
+    remote !== undefined &&
+    !isUrlInCurrentRegion(remote, window.SignalContext.config.serverUrl)
+  ) {
+    return undefined;
+  }
+  return remote;
 }
 
 const CONTENT_RATING = 'pg-13';
