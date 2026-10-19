@@ -41,6 +41,7 @@ export type PropsType = {
     conversationId: string,
     options?: { wasPinned?: boolean }
   ) => unknown;
+  onTellomiUndoUnpin?: (messageIds: ReadonlyArray<string>) => unknown;
   retryCallQualitySurvey: () => unknown;
   setDidResumeDonation: (didResume: boolean) => unknown;
   toast?: AnyToast;
@@ -61,6 +62,7 @@ function renderToast({
   saveHeapSnapshot,
   onShowDebugLog,
   onUndoArchive,
+  onTellomiUndoUnpin,
   retryCallQualitySurvey,
   setDidResumeDonation,
   OS,
@@ -946,6 +948,32 @@ function renderToast({
       <Toast onClose={hideToast}>
         {i18n('icu:Message--tap-to-view--outgoing--expired-toast-2')}
       </Toast>
+    );
+  }
+
+  if (toastType === ToastType.TellomiPinUnpinned) {
+    // 5 seconds, as the phones: the pins are taken back for real when it is over (util/tellomiHeldUnpins)
+    return (
+      <Toast
+        onClose={hideToast}
+        timeout={5 * SECOND}
+        toastAction={{
+          label: i18n('icu:TellomiPinUnpinned__Undo'),
+          onClick: () => {
+            onTellomiUndoUnpin?.(toast.parameters.messageIds);
+          },
+        }}
+      >
+        {i18n('icu:TellomiPinUnpinned', {
+          count: toast.parameters.messageIds.length,
+        })}
+      </Toast>
+    );
+  }
+
+  if (toastType === ToastType.TellomiPinUnpinFailed) {
+    return (
+      <Toast onClose={hideToast}>{i18n('icu:TellomiPinUnpinFailed')}</Toast>
     );
   }
 

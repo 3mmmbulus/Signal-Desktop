@@ -1466,6 +1466,39 @@
   "icu:PinnedMessagesBar__ActionsMenu__SeeAllMessages": {
     "messageformat": "查看所有消息"
   },
+  "icu:TellomiPinnedBar__Title--Pinned": {
+    "messageformat": "置顶消息"
+  },
+  "icu:TellomiPinnedBar__Title--Previous": {
+    "messageformat": "上一条置顶"
+  },
+  "icu:TellomiPinnedBar__Title--Numbered": {
+    "messageformat": "置顶消息 #{number, number}"
+  },
+  "icu:TellomiPinnedBar__ShowAll__AccessibilityLabel": {
+    "messageformat": "查看所有置顶消息"
+  },
+  "icu:TellomiPinnedBar__Unpin__AccessibilityLabel": {
+    "messageformat": "取消置顶"
+  },
+  "icu:TellomiPinnedBar__Hide__AccessibilityLabel": {
+    "messageformat": "隐藏置顶消息"
+  },
+  "icu:TellomiPinnedBar__UnpinConfirm__Title": {
+    "messageformat": "取消置顶这条消息？"
+  },
+  "icu:TellomiPinnedBar__UnpinConfirm__Unpin": {
+    "messageformat": "取消置顶"
+  },
+  "icu:TellomiPinUnpinned": {
+    "messageformat": "{count, plural, =1 {已取消置顶} other {# 条消息已取消置顶}}"
+  },
+  "icu:TellomiPinUnpinned__Undo": {
+    "messageformat": "撤消"
+  },
+  "icu:TellomiPinUnpinFailed": {
+    "messageformat": "取消置顶失败，该消息仍保持置顶。"
+  },
   "icu:PinnedMessagesBar__MessagePreview__SymbolLabel--VoiceMessage": {
     "messageformat": "语音消息"
   },

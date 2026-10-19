@@ -105,7 +105,7 @@ export const SmartToastManager = memo(function SmartToastManager({
   const { changeLocation } = useNavActions();
   const { setDidResume } = useDonationsActions();
 
-  const { onUndoArchive } = useConversationsActions();
+  const { onUndoArchive, tellomiUndoUnpin } = useConversationsActions();
   const { retryCallQualitySurvey } = useCallingActions();
   const { openFileInFolder, hideToast } = useToastActions();
   const { togglePinReminder, toggleUsernameOnboarding } =
@@ -163,6 +163,7 @@ export const SmartToastManager = memo(function SmartToastManager({
       megaphone={disableMegaphone ? undefined : megaphone}
       onShowDebugLog={handleShowDebugLog}
       onUndoArchive={onUndoArchive}
+      onTellomiUndoUnpin={tellomiUndoUnpin}
       retryCallQualitySurvey={retryCallQualitySurvey}
       openFileInFolder={openFileInFolder}
       saveHeapSnapshot={saveHeapSnapshot}

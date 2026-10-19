@@ -1,13 +1,13 @@
 // Copyright 2025 Signal Messenger, LLC
 // SPDX-License-Identifier: AGPL-3.0-only
 import type { ForwardedRef, ReactNode, JSX } from 'react';
-import { forwardRef, memo, useCallback, useMemo } from 'react';
+import { forwardRef, memo, useCallback, useMemo, useState } from 'react';
 import { Tabs } from 'radix-ui';
 import { AnimatePresence, motion } from 'motion/react';
 import type { LocalizerType } from '../../../types/I18N.std.ts';
 import { tw } from '../../../axo/tw.dom.tsx';
 import { AxoIconButton } from '../../../axo/AxoIconButton.dom.tsx';
-import { AxoDropdownMenu } from '../../../axo/AxoDropdownMenu.dom.tsx';
+import { AxoAlertDialog } from '../../../axo/AxoAlertDialog.dom.tsx';
 import { AriaClickable } from '../../../axo/AriaClickable.dom.tsx';
 import { UserText } from '../../UserText.dom.tsx';
 import type { PinnedMessageId } from '../../../types/PinnedMessage.std.ts';
@@ -20,6 +20,12 @@ import { AxoSymbol } from '../../../axo/AxoSymbol.dom.tsx';
 import { missingCaseError } from '../../../util/missingCaseError.std.ts';
 import { stripNewlinesForLeftPane } from '../../../util/stripNewlinesForLeftPane.std.ts';
 import { usePrevious } from '../../../hooks/usePrevious.std.ts';
+import {
+  getTellomiPinnedBarButton,
+  getTellomiPinnedBarSegments,
+  getTellomiPinnedBarTitle,
+} from '../../../util/tellomiPinnedBar.std.ts';
+import type { TellomiPinnedBarSegments } from '../../../util/tellomiPinnedBar.std.ts';
 
 enum Direction {
   None = 0,
@@ -76,13 +82,17 @@ export type Pin = Readonly<{
 
 export type PinnedMessagesBarProps = Readonly<{
   i18n: LocalizerType;
+  // Tellomi (pinned-messages.md 3.4): the oldest message first, not the oldest pin first.
   pins: ReadonlyArray<Pin>;
   current: PinnedMessageId | null;
   onCurrentChange: (current: PinnedMessageId) => void;
   onPinGoTo: (messageId: string) => void;
-  onPinRemove: (messageId: string) => void;
+  // Tellomi: the × on a bar with one pin, for someone who can unpin (after asking; "Undo" for 5 seconds).
+  onPinUnpin: (messageId: string) => void;
+  // Tellomi: the × on a bar with one pin, for someone who can't unpin: only hides the bar on this device.
+  onPinHide: () => void;
   onPinsShowAll: () => void;
-  canPinMessages: boolean;
+  canUnpin: boolean;
 }>;
 
 export const PinnedMessagesBar = memo(function PinnedMessagesBar(
@@ -148,10 +158,13 @@ export const PinnedMessagesBar = memo(function PinnedMessagesBar(
               i18n={i18n}
               pins={props.pins}
               current={props.current}
-              onCurrentChange={props.onCurrentChange}
+              segments={getTellomiPinnedBarSegments(
+                currentEntry.index,
+                props.pins.length
+              )}
             />
             <ContentWrapper>
-              {props.pins.map(pin => {
+              {props.pins.map((pin, pinIndex) => {
                 return (
                   <Tabs.Content
                     key={pin.id}
@@ -162,6 +175,7 @@ export const PinnedMessagesBar = memo(function PinnedMessagesBar(
                     <Content
                       i18n={i18n}
                       pin={pin}
+                      title={getTitleText(i18n, pinIndex, props.pins.length)}
                       direction={direction}
                       pinsCount={props.pins.length}
                     />
@@ -174,13 +188,14 @@ export const PinnedMessagesBar = memo(function PinnedMessagesBar(
               currentPin={currentEntry.value}
               onPinGoTo={props.onPinGoTo}
             />
-            <PinActionsMenu
+            <SideButton
               i18n={i18n}
               pin={currentEntry.value}
-              onPinGoTo={props.onPinGoTo}
-              onPinRemove={props.onPinRemove}
+              pinsCount={props.pins.length}
+              canUnpin={props.canUnpin}
+              onPinUnpin={props.onPinUnpin}
+              onPinHide={props.onPinHide}
               onPinsShowAll={props.onPinsShowAll}
-              canPinMessages={props.canPinMessages}
             />
           </Row>
         </Tabs.Root>
@@ -278,37 +293,61 @@ function ContentWrapper(props: { children: ReactNode }) {
   );
 }
 
+const FADE_PX = 8;
+
+// Tellomi (pinned-messages.md 3.4): at most three segments are drawn, the shown one in the middle where it can be; the
+// side that has more pins fades out.
+function getSegmentsMask(
+  segments: TellomiPinnedBarSegments
+): string | undefined {
+  if (!segments.fadeTop && !segments.fadeBottom) {
+    return undefined;
+  }
+  const top = segments.fadeTop
+    ? `transparent 0, black ${FADE_PX}px`
+    : 'black 0';
+  const bottom = segments.fadeBottom
+    ? `black calc(100% - ${FADE_PX}px), transparent 100%`
+    : 'black 100%';
+  return `linear-gradient(to bottom, ${top}, ${bottom})`;
+}
+
 function TabsList(props: {
   i18n: LocalizerType;
   pins: ReadonlyArray<Pin>;
   current: PinnedMessageId | null;
-  onCurrentChange: (current: PinnedMessageId) => void;
+  segments: TellomiPinnedBarSegments;
 }) {
-  const { i18n } = props;
+  const { i18n, segments } = props;
 
   if (props.pins.length < 2) {
     return null;
   }
+
+  const mask = getSegmentsMask(segments);
 
   return (
     <AriaClickable.SubWidget>
       <Tabs.List asChild>
         <motion.div
           className={tw('flex h-full flex-col py-2.5')}
+          style={mask == null ? undefined : { maskImage: mask }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         >
-          {props.pins.map((pin, pinIndex) => {
-            return (
-              <TabTrigger
-                key={pin.id}
-                i18n={i18n}
-                pin={pin}
-                pinNumber={pinIndex + 1}
-                pinsCount={props.pins.length}
-              />
-            );
-          })}
+          {props.pins
+            .slice(segments.first, segments.first + segments.count)
+            .map((pin, offset) => {
+              return (
+                <TabTrigger
+                  key={pin.id}
+                  i18n={i18n}
+                  pin={pin}
+                  pinNumber={segments.first + offset + 1}
+                  pinsCount={segments.count}
+                />
+              );
+            })}
         </motion.div>
       </Tabs.List>
     </AriaClickable.SubWidget>
@@ -345,15 +384,37 @@ function TabTrigger(props: {
   );
 }
 
+// Tellomi (pinned-messages.md 3.4): the title says which pin this is, not who sent it.
+function getTitleText(
+  i18n: LocalizerType,
+  index: number,
+  size: number
+): string {
+  const title = getTellomiPinnedBarTitle(index, size);
+  switch (title.kind) {
+    case 'pinned':
+      return i18n('icu:TellomiPinnedBar__Title--Pinned');
+    case 'previous':
+      return i18n('icu:TellomiPinnedBar__Title--Previous');
+    case 'numbered':
+      return i18n('icu:TellomiPinnedBar__Title--Numbered', {
+        number: title.number,
+      });
+    default:
+      throw missingCaseError(title);
+  }
+}
+
 type ContentProps = Readonly<{
   i18n: LocalizerType;
   pin: Pin;
+  title: string;
   direction: Direction;
   pinsCount: number;
 }>;
 
 const Content = forwardRef(function Content(
-  { i18n, pin, direction, pinsCount, ...forwardedProps }: ContentProps,
+  { i18n, pin, title, direction, pinsCount, ...forwardedProps }: ContentProps,
   ref: ForwardedRef<HTMLDivElement>
 ): JSX.Element {
   const thumbnailUrl = useMemo(() => {
@@ -398,7 +459,7 @@ const Content = forwardRef(function Content(
       )}
       <div className={tw('min-w-0 flex-1')}>
         <h1 className={tw('type-body-small font-semibold text-primary')}>
-          <UserText text={pin.sender.title} />
+          {title}
         </h1>
         <p className={tw('me-2 truncate type-body-medium text-primary')}>
           <MessagePreview i18n={i18n} message={pin.message} />
@@ -408,59 +469,78 @@ const Content = forwardRef(function Content(
   );
 });
 
-function PinActionsMenu(props: {
+// Tellomi (pinned-messages.md 3.4): the button on the right is the list of pins when there are several, and × when there
+// is one. The × takes the pin back when this person can (after asking; the toast then offers "Undo" for 5 seconds), and
+// otherwise only hides the bar on this device.
+function SideButton(props: {
   i18n: LocalizerType;
   pin: Pin;
-  onPinGoTo: (messageId: string) => void;
-  onPinRemove: (messageId: string) => void;
+  pinsCount: number;
+  canUnpin: boolean;
+  onPinUnpin: (messageId: string) => void;
+  onPinHide: () => void;
   onPinsShowAll: () => void;
-  canPinMessages: boolean;
 }) {
-  const { i18n, pin, onPinGoTo, onPinRemove, onPinsShowAll, canPinMessages } =
-    props;
+  const { i18n, pin, canUnpin, onPinUnpin, onPinHide, onPinsShowAll } = props;
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const handlePinGoTo = useCallback(() => {
-    onPinGoTo(pin.message.id);
-  }, [onPinGoTo, pin.message.id]);
+  const handleClose = useCallback(() => {
+    if (canUnpin) {
+      setConfirmOpen(true);
+    } else {
+      onPinHide();
+    }
+  }, [canUnpin, onPinHide]);
 
-  const handlePinRemove = useCallback(() => {
-    onPinRemove(pin.message.id);
-  }, [onPinRemove, pin.message.id]);
+  const handleConfirm = useCallback(() => {
+    onPinUnpin(pin.message.id);
+  }, [onPinUnpin, pin.message.id]);
 
-  const handlePinsShowAll = useCallback(() => {
-    onPinsShowAll();
-  }, [onPinsShowAll]);
+  if (getTellomiPinnedBarButton(props.pinsCount) === 'list') {
+    return (
+      <AriaClickable.SubWidget>
+        <AxoIconButton.Root
+          variant="implied-secondary"
+          size="md"
+          symbol="list-bullet"
+          label={i18n('icu:TellomiPinnedBar__ShowAll__AccessibilityLabel')}
+          onClick={onPinsShowAll}
+        />
+      </AriaClickable.SubWidget>
+    );
+  }
 
   return (
     <AriaClickable.SubWidget>
-      <AxoDropdownMenu.Root>
-        <AxoDropdownMenu.Trigger>
-          <AxoIconButton.Root
-            variant="implied-secondary"
-            size="md"
-            symbol="pin"
-            label={i18n(
-              'icu:PinnedMessagesBar__ActionsMenu__Button__AccessibilityLabel'
-            )}
-          />
-        </AxoDropdownMenu.Trigger>
-        <AxoDropdownMenu.Content>
-          {canPinMessages && (
-            <AxoDropdownMenu.Item symbol="pin-slash" onSelect={handlePinRemove}>
-              {i18n('icu:PinnedMessagesBar__ActionsMenu__UnpinMessage')}
-            </AxoDropdownMenu.Item>
-          )}
-          <AxoDropdownMenu.Item symbol="message-arrow" onSelect={handlePinGoTo}>
-            {i18n('icu:PinnedMessagesBar__ActionsMenu__GoToMessage')}
-          </AxoDropdownMenu.Item>
-          <AxoDropdownMenu.Item
-            symbol="list-bullet"
-            onSelect={handlePinsShowAll}
-          >
-            {i18n('icu:PinnedMessagesBar__ActionsMenu__SeeAllMessages')}
-          </AxoDropdownMenu.Item>
-        </AxoDropdownMenu.Content>
-      </AxoDropdownMenu.Root>
+      <AxoIconButton.Root
+        variant="implied-secondary"
+        size="md"
+        symbol="x"
+        label={
+          canUnpin
+            ? i18n('icu:TellomiPinnedBar__Unpin__AccessibilityLabel')
+            : i18n('icu:TellomiPinnedBar__Hide__AccessibilityLabel')
+        }
+        onClick={handleClose}
+      />
+      <AxoAlertDialog.Root open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AxoAlertDialog.Content escape="cancel-is-noop">
+          <AxoAlertDialog.Body>
+            <AxoAlertDialog.Title>
+              {i18n('icu:TellomiPinnedBar__UnpinConfirm__Title')}
+            </AxoAlertDialog.Title>
+          </AxoAlertDialog.Body>
+          <AxoAlertDialog.Footer>
+            <AxoAlertDialog.Cancel />
+            <AxoAlertDialog.Action
+              variant="strong-primary"
+              onClick={handleConfirm}
+            >
+              {i18n('icu:TellomiPinnedBar__UnpinConfirm__Unpin')}
+            </AxoAlertDialog.Action>
+          </AxoAlertDialog.Footer>
+        </AxoAlertDialog.Content>
+      </AxoAlertDialog.Root>
     </AriaClickable.SubWidget>
   );
 }

@@ -1950,6 +1950,50 @@
     "messageformat": "See all messages",
     "description": "Conversation > With pinned message(s) > Pinned messages bar > More actions menu > See all messages"
   },
+  "icu:TellomiPinnedBar__Title--Pinned": {
+    "messageformat": "Pinned message",
+    "description": "Tellomi (pinned-messages.md 3.4): title of the pinned messages bar when it shows the only pin, or the newest one"
+  },
+  "icu:TellomiPinnedBar__Title--Previous": {
+    "messageformat": "Previous pinned message",
+    "description": "Tellomi (pinned-messages.md 3.4): title of the pinned messages bar when there are two pins and it shows the older one"
+  },
+  "icu:TellomiPinnedBar__Title--Numbered": {
+    "messageformat": "Pinned message #{number, number}",
+    "description": "Tellomi (pinned-messages.md 3.4): title of the pinned messages bar when there are more than two pins and it shows one that is not the newest; {number} counts from the oldest pin"
+  },
+  "icu:TellomiPinnedBar__ShowAll__AccessibilityLabel": {
+    "messageformat": "Show all pinned messages",
+    "description": "Tellomi (pinned-messages.md 3.4): accessibility label of the button on the right of the pinned messages bar when there are several pins; it opens the list"
+  },
+  "icu:TellomiPinnedBar__Unpin__AccessibilityLabel": {
+    "messageformat": "Unpin message",
+    "description": "Tellomi (pinned-messages.md 3.4): accessibility label of the × on the pinned messages bar for someone who can unpin"
+  },
+  "icu:TellomiPinnedBar__Hide__AccessibilityLabel": {
+    "messageformat": "Hide pinned message",
+    "description": "Tellomi (pinned-messages.md 3.4): accessibility label of the × on the pinned messages bar for someone who can't unpin; it only hides the bar on this device"
+  },
+  "icu:TellomiPinnedBar__UnpinConfirm__Title": {
+    "messageformat": "Unpin this message?",
+    "description": "Tellomi (pinned-messages.md 3.4): question asked before taking back the only pin with the × on the pinned messages bar"
+  },
+  "icu:TellomiPinnedBar__UnpinConfirm__Unpin": {
+    "messageformat": "Unpin",
+    "description": "Tellomi (pinned-messages.md 3.4): button that confirms taking back the pin"
+  },
+  "icu:TellomiPinUnpinned": {
+    "messageformat": "{count, plural, =1 {Message unpinned} other {# messages unpinned}}",
+    "description": "Tellomi (pinned-messages.md 3.5 / 3.6): toast after unpinning, with Undo for 5 seconds; {count} is how many messages were unpinned"
+  },
+  "icu:TellomiPinUnpinned__Undo": {
+    "messageformat": "Undo",
+    "description": "Tellomi (pinned-messages.md 3.5 / 3.6): button on the toast after unpinning; the pins are only taken back for real once it is gone"
+  },
+  "icu:TellomiPinUnpinFailed": {
+    "messageformat": "Couldn't unpin. The message is still pinned.",
+    "description": "Tellomi (pinned-messages.md 3.5 / 3.6): toast when taking back a pin failed after Undo ran out; the pin is back on the bar"
+  },
   "icu:PinnedMessagesBar__MessagePreview__SymbolLabel--VoiceMessage": {
     "messageformat": "Voice message",
     "description": "Conversation > With pinned message(s) > Pinned messages bar > Message Preview > Symbol Accessibility Label (Voice message)"

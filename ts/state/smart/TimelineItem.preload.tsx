@@ -169,7 +169,7 @@ export const SmartTimelineItem = memo(function SmartTimelineItem(
     markAttachmentAsCorrupted,
     revealTellomiSpoiler,
     messageExpanded,
-    onPinnedMessageRemove,
+    tellomiUnpinWithUndo,
     openGiftBadge,
     retryDeleteForEveryone,
     retryMessageSend,
@@ -230,6 +230,14 @@ export const SmartTimelineItem = memo(function SmartTimelineItem(
       toggleMessageRequestActionsConfirmation({ conversationId, state });
     },
     [conversationId, toggleMessageRequestActionsConfirmation]
+  );
+
+  // Tellomi (pinned-messages.md 3.6): "Unpin" in a message's menu goes through the same "Undo" as the bar's ×
+  const onPinnedMessageRemove = useCallback(
+    (targetMessageId: string) => {
+      tellomiUnpinWithUndo([targetMessageId]);
+    },
+    [tellomiUnpinWithUndo]
   );
 
   const handleDebugMessage = useCallback(async () => {
