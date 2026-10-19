@@ -1995,7 +1995,7 @@
     "description": "Tellomi (pinned-messages.md 3.5 / 3.6): toast when taking back a pin failed after Undo ran out; the pin is back on the bar"
   },
   "icu:TellomiPinnedPanel__Title": {
-    "messageformat": "{count, plural, =1 {1 pinned message} other {# pinned messages}}",
+    "messageformat": "{count, plural, one {# pinned message} other {# pinned messages}}",
     "description": "Tellomi (pinned-messages.md 3.5): title of the list of pinned messages; {count} is how many pins the list shows"
   },
   "icu:TellomiPinnedPanel__UnpinAll": {
