@@ -3,6 +3,8 @@
 
 import type { ReadonlyMessageAttributesType } from '../model-types.d.ts';
 import type { LocalizerType } from '../types/Util.std.ts';
+import { ReadStatus } from '../messages/MessageReadStatus.std.ts';
+import { SeenStatus } from '../MessageSeenStatus.std.ts';
 import {
   getTellomiPinNoticeText,
   type TellomiPinSubject,
@@ -60,6 +62,17 @@ export function isTellomiPinNoticeHidden(
   message: Pick<ReadonlyMessageAttributesType, 'type' | 'deletedForEveryone'>
 ): boolean {
   return isTellomiPinNotice(message) && Boolean(message.deletedForEveryone);
+}
+
+// What deleting a pin line for everyone sets besides the upstream erase: it no longer counts as unread or unseen
+// (erel 2026-10-19, after how Telegram behaves) — read, without sending a read receipt for it. Anything else: nothing.
+export function getTellomiPinNoticeDeletedProps(
+  message: Pick<ReadonlyMessageAttributesType, 'type'>
+): Partial<Pick<ReadonlyMessageAttributesType, 'readStatus' | 'seenStatus'>> {
+  if (!isTellomiPinNotice(message)) {
+    return {};
+  }
+  return { readStatus: ReadStatus.Read, seenStatus: SeenStatus.Seen };
 }
 
 // The timeline's ids without the hidden ones. The indexes into it (the oldest unseen message, the one to scroll to)

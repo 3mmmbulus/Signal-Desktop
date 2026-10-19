@@ -13,6 +13,10 @@ import { isAciString } from './isAciString.std.ts';
 import { eraseMessageContents } from './cleanup.preload.ts';
 import { notificationService } from '../services/notifications.preload.ts';
 import { DataWriter } from '../sql/Client.preload.ts';
+import {
+  getTellomiPinNoticeDeletedProps,
+  isTellomiPinNotice,
+} from './tellomiPinNoticeActions.std.ts';
 
 const log = createLogger('deleteForEveryone');
 
@@ -118,6 +122,8 @@ export async function applyDeleteForEveryone(
     const additionalProps: Partial<MessageAttributesType> = {
       deletedForEveryone: true,
       reactions: [],
+      // Tellomi (ADR-0081 §九 P5): a deleted pin's chat event stops counting as unread
+      ...getTellomiPinNoticeDeletedProps(message.attributes),
     };
     if (del.isAdminDelete) {
       additionalProps.deletedForEveryoneByAdminAci = del.deleteSentByAci;
@@ -135,6 +141,15 @@ export async function applyDeleteForEveryone(
       await window.MessageCache.saveMessage(message.attributes, {
         forceSave: true,
       });
+
+      // Tellomi (ADR-0081 §九 P5): the chat's unread count and its preview in the list no longer take it in
+      if (isTellomiPinNotice(message.attributes)) {
+        const conversation = window.ConversationController.get(
+          message.attributes.conversationId
+        );
+        conversation?.throttledUpdateUnread();
+        conversation?.debouncedUpdateLastMessage();
+      }
     }
   } finally {
     // oxlint-disable-next-line no-param-reassign

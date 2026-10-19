@@ -6,12 +6,15 @@ import { assert } from 'chai';
 import {
   getTellomiPinNoticeMenuItems,
   getTellomiPinNoticeQuoteText,
+  getTellomiPinNoticeDeletedProps,
   isTellomiPinNotice,
   isTellomiPinNoticeHidden,
   isTellomiPinNoticeOfMine,
   withoutTellomiHiddenItems,
 } from '../../util/tellomiPinNoticeActions.std.ts';
 import type { ServiceIdString } from '../../types/ServiceId.std.ts';
+import { ReadStatus } from '../../messages/MessageReadStatus.std.ts';
+import { SeenStatus } from '../../MessageSeenStatus.std.ts';
 import i18n from './i18n.node.ts';
 
 // ADR-0081 §九 P5, pinned-messages.md 3.7: the same cases as Android's `TellomiPinNoticeActionsTest` and iOS's.
@@ -88,6 +91,14 @@ describe('tellomiPinNoticeActions', () => {
       isTellomiPinNoticeHidden({ type: 'incoming', deletedForEveryone: true }),
       'a deleted message still shows its placeholder'
     );
+  });
+
+  it('a pin line deleted for everyone is read and seen; any other deleted message is left as it was', () => {
+    assert.deepEqual(
+      getTellomiPinNoticeDeletedProps({ type: 'pinned-message-notification' }),
+      { readStatus: ReadStatus.Read, seenStatus: SeenStatus.Seen }
+    );
+    assert.deepEqual(getTellomiPinNoticeDeletedProps({ type: 'incoming' }), {});
   });
 
   describe('withoutTellomiHiddenItems', () => {
