@@ -24,9 +24,12 @@ import type {
 //   `isAllowedUrl`, and the addresses DNS returned (checked in the lookup that the connection
 //   itself uses, so there is no gap between checking and connecting).
 // - Connect 5 s, whole request 10 s; the body is counted after decompression and the request is
-//   dropped past `maxBytes`; the Content-Type must be one the step accepts.
-// - Failures that happen before the TLS handshake completes (DNS, refused, reset, TLS) are
-//   network errors: the host goes into the reachability memo (§4.3). Everything else is a failure.
+//   dropped past `maxBytes` — except an HTML page, which keeps its first `maxBytes` bytes and is
+//   parsed from that (OG tags sit in <head>; PM 2026-10-19, ADR-0063 §4.4). The Content-Type must
+//   be one the step accepts.
+// - Definite failures before the TLS handshake completes (DNS, refused, reset, TLS) are network
+//   errors: the host goes into the reachability memo (§4.3). A timeout — the connect timeout
+//   included — is never one (PM 2026-10-19, ADR-0063 §4.4). Everything else is a failure.
 
 export type LinkFetchEnv = Readonly<{
   // Every hop's URL must pass this too (Desktop: `shouldPreviewHref`).
@@ -77,7 +80,10 @@ type Hop =
       contentType: string;
       location: string | null;
       body: Uint8Array<ArrayBuffer>;
+      truncated: boolean;
     }>;
+
+const CONNECT_TIMEOUT = 'TELLOMI_CONNECT_TIMEOUT';
 
 function decoderFor(
   encoding: string | undefined
@@ -180,7 +186,9 @@ function oneHop(
       () => {
         if (!connected) {
           req.destroy(
-            Object.assign(new Error('connect timeout'), { code: 'ETIMEDOUT' })
+            Object.assign(new Error('connect timeout'), {
+              code: CONNECT_TIMEOUT,
+            })
           );
         }
       },
@@ -221,6 +229,7 @@ function oneHop(
           contentType,
           location,
           body: new Uint8Array(0),
+          truncated: false,
         });
         return;
       }
@@ -252,25 +261,16 @@ function oneHop(
         return;
       }
 
+      // An HTML page over the limit is cut, not dropped (PM 2026-10-19, ADR-0063 §4.4).
+      const truncates =
+        request.kind === 'fetch' &&
+        (request.contentTypes ?? []).includes('text/html');
       const chunks: Array<Buffer<ArrayBuffer>> = [];
       let size = 0;
+      let settled = false;
       const stream = decode(response);
-      stream.on('data', (chunk: Buffer<ArrayBuffer>) => {
-        size += chunk.byteLength;
-        if (size > request.maxBytes) {
-          response.destroy();
-          stream.destroy(new FetchFailure('too_large'));
-          return;
-        }
-        chunks.push(chunk);
-      });
-      stream.on('error', error => {
-        cleanup();
-        reject(
-          error instanceof FetchFailure ? error : new FetchFailure('other')
-        );
-      });
-      stream.on('end', () => {
+      const finish = (truncated: boolean) => {
+        settled = true;
         cleanup();
         const body = new Uint8Array(size);
         let offset = 0;
@@ -278,7 +278,58 @@ function oneHop(
           body.set(chunk, offset);
           offset += chunk.byteLength;
         }
-        resolve({ kind: 'done', status, contentType, location, body });
+        resolve({
+          kind: 'done',
+          status,
+          contentType,
+          location,
+          body,
+          truncated,
+        });
+      };
+      stream.on('data', (chunk: Buffer<ArrayBuffer>) => {
+        if (settled) {
+          return;
+        }
+        if (size + chunk.byteLength > request.maxBytes) {
+          if (truncates) {
+            const kept = chunk.subarray(0, request.maxBytes - size);
+            chunks.push(kept);
+            size += kept.byteLength;
+            finish(true);
+            stream.destroy();
+            if (stream !== response) {
+              response.destroy();
+            }
+            return;
+          }
+          // Fail the decoded stream first: for an uncompressed body it is `response` itself, and a
+          // plain destroy() before it would end the stream without the error.
+          settled = true;
+          cleanup();
+          reject(new FetchFailure('too_large'));
+          stream.destroy();
+          if (stream !== response) {
+            response.destroy();
+          }
+          return;
+        }
+        size += chunk.byteLength;
+        chunks.push(chunk);
+      });
+      stream.on('error', error => {
+        if (settled) {
+          return;
+        }
+        cleanup();
+        reject(
+          error instanceof FetchFailure ? error : new FetchFailure('other')
+        );
+      });
+      stream.on('end', () => {
+        if (!settled) {
+          finish(false);
+        }
       });
     });
 
@@ -294,7 +345,12 @@ function classify(error: unknown, connected: boolean): LinkFetchResult {
   if (code === BLOCKED_ADDRESS) {
     return { type: 'failure', reason: 'blocked_address' };
   }
-  // Nothing was exchanged with the site yet: DNS, TCP, TLS.
+  // A timeout is not a definite failure, even before connecting: it never marks the host
+  // (PM 2026-10-19, ADR-0063 §4.4).
+  if (code === CONNECT_TIMEOUT || code === 'ETIMEDOUT') {
+    return { type: 'failure', reason: 'timeout' };
+  }
+  // Nothing was exchanged with the site yet, and it definitely failed: DNS, refused, reset, TLS.
   if (!connected) {
     return { type: 'network_error' };
   }
@@ -346,6 +402,7 @@ export async function performLinkFetch(
         location: hop.location,
         body: hop.body,
         redirects,
+        ...(hop.truncated ? { truncated: true } : {}),
       };
     }
 

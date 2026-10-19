@@ -42,6 +42,8 @@ type Seen = Readonly<{
 }>;
 
 const HTML = '<html><head><title>fixture</title></head><body>ok</body></html>';
+const BIG_HEAD =
+  '<html><head><meta property="og:title" content="big"></head><body>';
 
 describe('performLinkFetch', function (this: Mocha.Suite) {
   this.timeout(20000);
@@ -139,6 +141,19 @@ describe('performLinkFetch', function (this: Mocha.Suite) {
           'Content-Encoding': 'gzip',
         });
         res.end(gzipSync(Buffer.alloc(3 * 1024 * 1024, 0x20)));
+        return;
+      case '/big-html':
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(
+          Buffer.concat([
+            Buffer.from(BIG_HEAD),
+            Buffer.alloc(2 * 1024 * 1024 + 1, 0x61),
+          ])
+        );
+        return;
+      case '/big-image':
+        res.writeHead(200, { 'Content-Type': 'image/png' });
+        res.end(Buffer.alloc(2 * 1024 * 1024 + 1));
         return;
       case '/weird-encoding':
         res.writeHead(200, {
@@ -427,16 +442,73 @@ describe('performLinkFetch', function (this: Mocha.Suite) {
       gzip.type === 'response' && Buffer.from(gzip.body).toString(),
       HTML
     );
-    assert.deepEqual(
-      await performLinkFetch(page('https://h1.fetch-fixture.test/bomb'), env()),
-      { type: 'failure', reason: 'too_large' }
+    // A gzip bomb is cut at 2 MiB decompressed, never inflated past it (an HTML page is kept, cut).
+    const bomb = await performLinkFetch(
+      page('https://h1.fetch-fixture.test/bomb'),
+      env()
     );
+    assert.strictEqual(bomb.type, 'response');
+    assert.strictEqual(
+      bomb.type === 'response' && bomb.body.length,
+      2 * 1024 * 1024
+    );
+    assert.strictEqual(bomb.type === 'response' && bomb.truncated, true);
     assert.deepEqual(
       await performLinkFetch(
         page('https://h1.fetch-fixture.test/weird-encoding'),
         env()
       ),
       { type: 'failure', reason: 'encoding' }
+    );
+  });
+
+  // PM 2026-10-19 (ADR-0063 §4.4): an HTML page over 2 MiB is parsed from its first 2 MiB.
+  it('keeps the first 2 MiB of an HTML page over the limit', async () => {
+    const result = await performLinkFetch(
+      page('https://h1.fetch-fixture.test/big-html'),
+      env()
+    );
+    assert.strictEqual(result.type, 'response');
+    if (result.type !== 'response') {
+      return;
+    }
+    assert.strictEqual(result.status, 200);
+    assert.strictEqual(result.truncated, true);
+    assert.strictEqual(result.body.length, 2 * 1024 * 1024);
+    assert.strictEqual(
+      Buffer.from(result.body.subarray(0, BIG_HEAD.length)).toString(),
+      BIG_HEAD
+    );
+
+    const small = await performLinkFetch(
+      page('https://h1.fetch-fixture.test/page'),
+      env()
+    );
+    assert.strictEqual(small.type === 'response' && small.truncated, undefined);
+  });
+
+  it('still drops an image or JSON over the limit', async () => {
+    assert.deepEqual(
+      await performLinkFetch(
+        page('https://h1.fetch-fixture.test/big-image', {
+          kind: 'image',
+          accept: 'image/*',
+          contentTypes: ['image/png'],
+        }),
+        env()
+      ),
+      { type: 'failure', reason: 'too_large' }
+    );
+    assert.deepEqual(
+      await performLinkFetch(
+        page('https://h1.fetch-fixture.test/json', {
+          accept: 'application/json',
+          contentTypes: ['application/json'],
+          maxBytes: 3,
+        }),
+        env()
+      ),
+      { type: 'failure', reason: 'too_large' }
     );
   });
 
@@ -469,6 +541,21 @@ describe('performLinkFetch', function (this: Mocha.Suite) {
       ),
       { type: 'network_error' }
     );
+  });
+
+  // PM 2026-10-19 (ADR-0063 §4.4): a connect timeout is not a definite failure — the host is not
+  // reported as unreachable (rust/links would put it in the reachability memo).
+  it('reports a connect timeout as a timeout, not a network error', async () => {
+    const result = await performLinkFetch(
+      page('https://h1.fetch-fixture.test/page', { connectTimeoutMs: 200 }),
+      env({
+        resolve: async () => {
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          return ['203.0.113.11'];
+        },
+      })
+    );
+    assert.deepEqual(result, { type: 'failure', reason: 'timeout' });
   });
 
   it('gives up on a response that never finishes', async () => {
