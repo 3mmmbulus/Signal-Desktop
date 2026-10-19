@@ -42,6 +42,10 @@ export type PropsType = {
     options?: { wasPinned?: boolean }
   ) => unknown;
   onTellomiUndoUnpin?: (messageIds: ReadonlyArray<string>) => unknown;
+  onTellomiUndoHidePins?: (
+    conversationId: string,
+    previousHiddenAt: number | undefined
+  ) => unknown;
   retryCallQualitySurvey: () => unknown;
   setDidResumeDonation: (didResume: boolean) => unknown;
   toast?: AnyToast;
@@ -63,6 +67,7 @@ function renderToast({
   onShowDebugLog,
   onUndoArchive,
   onTellomiUndoUnpin,
+  onTellomiUndoHidePins,
   retryCallQualitySurvey,
   setDidResumeDonation,
   OS,
@@ -967,6 +972,26 @@ function renderToast({
         {i18n('icu:TellomiPinUnpinned', {
           count: toast.parameters.messageIds.length,
         })}
+      </Toast>
+    );
+  }
+
+  if (toastType === ToastType.TellomiPinBarHidden) {
+    return (
+      <Toast
+        onClose={hideToast}
+        timeout={5 * SECOND}
+        toastAction={{
+          label: i18n('icu:TellomiPinUnpinned__Undo'),
+          onClick: () => {
+            onTellomiUndoHidePins?.(
+              toast.parameters.conversationId,
+              toast.parameters.previousHiddenAt
+            );
+          },
+        }}
+      >
+        {i18n('icu:TellomiPinBarHidden')}
       </Toast>
     );
   }

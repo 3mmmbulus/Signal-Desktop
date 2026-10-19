@@ -9,6 +9,7 @@ import {
   getTellomiPinnedBarSegments,
   getTellomiPinnedBarTitle,
   isTellomiPinnedBarHidden,
+  setTellomiPinnedBarHidden,
   sortTellomiPinsByMessageOrder,
   tellomiNextPinAfterTap,
   tellomiPinFor,
@@ -194,5 +195,26 @@ describe('tellomiPinnedBar', () => {
       isTellomiPinnedBarHidden(200, []),
       'no pins, nothing to hide'
     );
+  });
+
+  it('hides and shows one chat without touching the others, and does not change the map it was given', () => {
+    const before = { a: 10, b: 20 };
+    assert.deepEqual(setTellomiPinnedBarHidden(before, 'c', 30), {
+      a: 10,
+      b: 20,
+      c: 30,
+    });
+    assert.deepEqual(setTellomiPinnedBarHidden(before, 'a', 15), {
+      a: 15,
+      b: 20,
+    });
+    assert.deepEqual(setTellomiPinnedBarHidden(before, 'a', undefined), {
+      b: 20,
+    });
+    assert.deepEqual(
+      setTellomiPinnedBarHidden(before, 'zzz', undefined),
+      before
+    );
+    assert.deepEqual(before, { a: 10, b: 20 });
   });
 });

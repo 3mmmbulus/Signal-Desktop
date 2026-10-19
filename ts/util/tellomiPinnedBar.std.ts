@@ -138,3 +138,16 @@ export function getTellomiPinnedBarCloseAction(
 export function getTellomiPinnedBarButton(pinsCount: number): 'list' | 'close' {
   return pinsCount > 1 ? 'list' : 'close';
 }
+
+// The map of hidden bars (chat id -> date of the newest pin when it was hidden) with one chat set, or, with no date,
+// shown again.
+export function setTellomiPinnedBarHidden(
+  hidden: Readonly<Record<string, number>>,
+  conversationId: string,
+  hiddenAt: number | undefined
+): Record<string, number> {
+  const rest = Object.fromEntries(
+    Object.entries(hidden).filter(([id]) => id !== conversationId)
+  );
+  return hiddenAt == null ? rest : { ...rest, [conversationId]: hiddenAt };
+}

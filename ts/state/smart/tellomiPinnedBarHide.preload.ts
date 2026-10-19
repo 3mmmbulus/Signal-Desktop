@@ -4,6 +4,7 @@
 import { useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { getTellomiPinnedBarHidden } from '../selectors/items.dom.ts';
+import { setTellomiPinnedBarHidden } from '../../util/tellomiPinnedBar.std.ts';
 import { useItemsActions } from '../ducks/items.preload.ts';
 
 // Tellomi (pinned-messages.md 3.4 / 3.5, ADR-0081 P3 / P4): hiding the pinned messages bar of a chat on this device — a
@@ -20,10 +21,10 @@ export function useTellomiPinnedBarHide(conversationId: string): Readonly<{
 
   const hide = useCallback(
     (hiddenAt: number) => {
-      putItem('tellomiPinnedBarHidden', {
-        ...hidden,
-        [conversationId]: hiddenAt,
-      });
+      putItem(
+        'tellomiPinnedBarHidden',
+        setTellomiPinnedBarHidden(hidden, conversationId, hiddenAt)
+      );
     },
     [putItem, hidden, conversationId]
   );
@@ -31,9 +32,7 @@ export function useTellomiPinnedBarHide(conversationId: string): Readonly<{
   const unhide = useCallback(() => {
     putItem(
       'tellomiPinnedBarHidden',
-      Object.fromEntries(
-        Object.entries(hidden).filter(([id]) => id !== conversationId)
-      )
+      setTellomiPinnedBarHidden(hidden, conversationId, undefined)
     );
   }, [putItem, hidden, conversationId]);
 

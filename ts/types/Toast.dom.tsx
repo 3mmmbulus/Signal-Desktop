@@ -95,6 +95,8 @@ export enum ToastType {
   // Tellomi (pinned-messages.md 3.5 / 3.6, ADR-0081 P3): pins taken back, with a 5 second "Undo"; sending them failed
   TellomiPinUnpinned = 'TellomiPinUnpinned',
   TellomiPinUnpinFailed = 'TellomiPinUnpinFailed',
+  // Tellomi (pinned-messages.md 3.5, ADR-0081 P4): the pinned messages bar was hidden on this device, with a 5 second "Undo"
+  TellomiPinBarHidden = 'TellomiPinBarHidden',
   TooManyMessagesToDeleteForEveryone = 'TooManyMessagesToDeleteForEveryone',
   TooManyMessagesToForward = 'TooManyMessagesToForward',
   TransportError = 'TransportError',
@@ -262,6 +264,14 @@ export type AnyToast =
       parameters: { messageIds: ReadonlyArray<string> };
     }
   | { toastType: ToastType.TellomiPinUnpinFailed }
+  | {
+      toastType: ToastType.TellomiPinBarHidden;
+      // `previousHiddenAt`: what undoing it puts back (none = the bar was not hidden)
+      parameters: {
+        conversationId: string;
+        previousHiddenAt: number | undefined;
+      };
+    }
   | {
       toastType: ToastType.TooManyMessagesToDeleteForEveryone;
       parameters: { count: number };

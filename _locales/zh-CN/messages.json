@@ -1499,6 +1499,21 @@
   "icu:TellomiPinUnpinFailed": {
     "messageformat": "取消置顶失败，该消息仍保持置顶。"
   },
+  "icu:TellomiPinnedPanel__Title": {
+    "messageformat": "{count, plural, other {# 条置顶消息}}"
+  },
+  "icu:TellomiPinnedPanel__UnpinAll": {
+    "messageformat": "取消所有置顶"
+  },
+  "icu:TellomiPinnedPanel__Hide": {
+    "messageformat": "隐藏置顶消息"
+  },
+  "icu:TellomiPinnedPanel__OnlyYou": {
+    "messageformat": "仅自己可见"
+  },
+  "icu:TellomiPinBarHidden": {
+    "messageformat": "置顶消息已隐藏，有新的置顶时会再显示"
+  },
   "icu:PinnedMessagesBar__MessagePreview__SymbolLabel--VoiceMessage": {
     "messageformat": "语音消息"
   },

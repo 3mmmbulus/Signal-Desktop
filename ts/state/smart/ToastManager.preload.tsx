@@ -1,7 +1,7 @@
 // Copyright 2024 Signal Messenger, LLC
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import { memo, type JSX } from 'react';
+import { memo, useCallback, type JSX } from 'react';
 import { useSelector } from 'react-redux';
 import { getHeapSnapshot } from 'node:v8';
 
@@ -31,7 +31,12 @@ import { useToastActions } from '../ducks/toast.preload.ts';
 import { useGlobalModalActions } from '../ducks/globalModals.preload.ts';
 import { useNavActions } from '../ducks/nav.std.ts';
 import { NavTab } from '../../types/Nav.std.ts';
-import { getHasCompletedUsernameOnboarding } from '../selectors/items.dom.ts';
+import {
+  getHasCompletedUsernameOnboarding,
+  getTellomiPinnedBarHidden,
+} from '../selectors/items.dom.ts';
+import { useItemsActions } from '../ducks/items.preload.ts';
+import { setTellomiPinnedBarHidden } from '../../util/tellomiPinnedBar.std.ts';
 import { ToastManager } from '../../components/ToastManager.dom.tsx';
 import type { WidthBreakpoint } from '../../components/_util.std.ts';
 import { getToast } from '../selectors/toast.std.ts';
@@ -106,6 +111,22 @@ export const SmartToastManager = memo(function SmartToastManager({
   const { setDidResume } = useDonationsActions();
 
   const { onUndoArchive, tellomiUndoUnpin } = useConversationsActions();
+  const tellomiPinnedBarHidden = useSelector(getTellomiPinnedBarHidden);
+  const { putItem } = useItemsActions();
+  // "Undo" on "Pinned messages hidden": the bar goes back the way it was
+  const handleTellomiUndoHidePins = useCallback(
+    (conversationId: string, previousHiddenAt: number | undefined) => {
+      putItem(
+        'tellomiPinnedBarHidden',
+        setTellomiPinnedBarHidden(
+          tellomiPinnedBarHidden,
+          conversationId,
+          previousHiddenAt
+        )
+      );
+    },
+    [putItem, tellomiPinnedBarHidden]
+  );
   const { retryCallQualitySurvey } = useCallingActions();
   const { openFileInFolder, hideToast } = useToastActions();
   const { togglePinReminder, toggleUsernameOnboarding } =
@@ -164,6 +185,7 @@ export const SmartToastManager = memo(function SmartToastManager({
       onShowDebugLog={handleShowDebugLog}
       onUndoArchive={onUndoArchive}
       onTellomiUndoUnpin={tellomiUndoUnpin}
+      onTellomiUndoHidePins={handleTellomiUndoHidePins}
       retryCallQualitySurvey={retryCallQualitySurvey}
       openFileInFolder={openFileInFolder}
       saveHeapSnapshot={saveHeapSnapshot}

@@ -267,6 +267,11 @@ function getToast(toastType: ToastType): AnyToast {
       };
     case ToastType.TellomiPinUnpinFailed:
       return { toastType: ToastType.TellomiPinUnpinFailed };
+    case ToastType.TellomiPinBarHidden:
+      return {
+        toastType: ToastType.TellomiPinBarHidden,
+        parameters: { conversationId: 'a', previousHiddenAt: undefined },
+      };
     case ToastType.TransportError:
       return { toastType: ToastType.TransportError };
     case ToastType.TooManyMessagesToDeleteForEveryone:
@@ -377,6 +382,7 @@ export default {
     onShowDebugLog: action('onShowDebugLog'),
     onUndoArchive: action('onUndoArchive'),
     onTellomiUndoUnpin: action('onTellomiUndoUnpin'),
+    onTellomiUndoHidePins: action('onTellomiUndoHidePins'),
     retryCallQualitySurvey: action('retryCallQualitySurvey'),
     i18n,
     toastType: ToastType.AddingUserToGroup,

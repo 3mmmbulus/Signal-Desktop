@@ -56,3 +56,27 @@ export function canTellomiUnpin({
 }>): boolean {
   return isPinnedForMe || (canPinForEveryone && !isInactiveGroup);
 }
+
+// The button at the bottom of the list of pins: "Unpin all" when each of the pins can be unpinned by this person (a
+// pin for me only always can; any other follows `canTellomiUnpin`), and otherwise "Hide pinned messages", which only
+// hides the bar and the list on this device. pinned-messages.md 3.5.
+export function canTellomiUnpinAll({
+  pins,
+  canPinForEveryone,
+  isInactiveGroup,
+}: Readonly<{
+  pins: ReadonlyArray<Readonly<{ isPinnedForMe: boolean }>>;
+  canPinForEveryone: boolean;
+  isInactiveGroup: boolean;
+}>): boolean {
+  return (
+    pins.length > 0 &&
+    pins.every(pin =>
+      canTellomiUnpin({
+        isPinnedForMe: pin.isPinnedForMe,
+        canPinForEveryone,
+        isInactiveGroup,
+      })
+    )
+  );
+}

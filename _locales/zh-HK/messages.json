@@ -1499,6 +1499,21 @@
   "icu:TellomiPinUnpinFailed": {
     "messageformat": "取消釘選失敗，該訊息仍保持釘選。"
   },
+  "icu:TellomiPinnedPanel__Title": {
+    "messageformat": "{count, plural, other {# 則釘選訊息}}"
+  },
+  "icu:TellomiPinnedPanel__UnpinAll": {
+    "messageformat": "取消所有釘選"
+  },
+  "icu:TellomiPinnedPanel__Hide": {
+    "messageformat": "隱藏釘選訊息"
+  },
+  "icu:TellomiPinnedPanel__OnlyYou": {
+    "messageformat": "僅自己可見"
+  },
+  "icu:TellomiPinBarHidden": {
+    "messageformat": "釘選訊息已隱藏，有新的釘選時會再顯示"
+  },
   "icu:PinnedMessagesBar__MessagePreview__SymbolLabel--VoiceMessage": {
     "messageformat": "語音訊息"
   },
