@@ -57,6 +57,45 @@ describe('findPreviewCandidates', () => {
     );
   });
 
+  // PM 2026-10-19 (ADR-0063 §5.6): Chinese after the host gets a preview, sent as written (the
+  // raw IRI, as Android sends it, which every receiver already finds in the body).
+  it('previews a link with Chinese in its path or query, cut at Chinese punctuation', () => {
+    assert.strictEqual(
+      firstPreview('看 https://zh.wikipedia.org/wiki/中国 吧'),
+      'https://zh.wikipedia.org/wiki/中国'
+    );
+    assert.strictEqual(
+      firstPreview('https://zh.wikipedia.org/wiki/中国，很好'),
+      'https://zh.wikipedia.org/wiki/中国'
+    );
+    assert.strictEqual(
+      firstPreview('搜 https://www.baidu.com/s?wd=天气。'),
+      'https://www.baidu.com/s?wd=天气'
+    );
+    assert.isUndefined(
+      firstPreview('https://zh.wikipedia.org/wiki/中\u200b国')
+    );
+  });
+
+  // PM 2026-10-19: a link with a zero-width / bidi character gets no preview, not a shortened one
+  it('has no preview for a link with a hidden character in it', () => {
+    assert.isUndefined(firstPreview('https://signal.org/abc\ufeff'));
+    assert.isUndefined(firstPreview('https://signal.org/a\u200bb'));
+    assert.isUndefined(firstPreview('https://signal.org/abc\u200f next'));
+    assert.strictEqual(
+      firstPreview('https://signal.org/abc\u200e https://signal.org/ok'),
+      'https://signal.org/ok'
+    );
+    assert.strictEqual(
+      firstPreview('https://zh.wikipedia.org/wiki/中国，\u200b很好'),
+      'https://zh.wikipedia.org/wiki/中国'
+    );
+    assert.strictEqual(
+      firstPreview('https://signal.org/abc \u200b'),
+      'https://signal.org/abc'
+    );
+  });
+
   it('leaves https links as Signal finds them', () => {
     assert.deepEqual(findPreviewCandidates('see https://b23.tv/abc'), [
       'https://b23.tv/abc',

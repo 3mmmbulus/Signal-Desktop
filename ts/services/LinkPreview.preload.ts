@@ -151,8 +151,9 @@ function _maybeGrabLinkPreview(
   );
 }
 
-// The links of `message` as they are previewed: Signal's `findLinks`, with an `http://` or
-// scheme-less link the registry claims spelt https (Tellomi, ADR-0063 §5.6). Every place that
+// The links of `message` as they are previewed: Signal's `findLinks`, cut at Chinese punctuation
+// (`cutAtIriTerminator`), with an `http://` or scheme-less link the registry claims spelt https
+// (Tellomi, ADR-0063 §5.6). Every place that
 // compares a preview with the message uses this, so the same link is not fetched again on every
 // keystroke and its preview is not dropped at send.
 /** @testexport */
@@ -160,9 +161,16 @@ export function findPreviewCandidates(
   message: string,
   caretLocation?: number
 ): Array<string> {
-  return LinkPreview.findLinks(message, caretLocation).map(
-    link => getHttpsUpgrade(link, claimsHttpsUpgrade) ?? link
-  );
+  return LinkPreview.findLinks(message, caretLocation).flatMap(found => {
+    // Tellomi (PM 2026-10-19): a link with a hidden character in it gets no preview at all, not a
+    // shortened one (`https://signal.org/abc\ufeff` used to be cut at U+FEFF, which is `\s`)
+    const length = LinkPreview.getLinkifiableLength(found);
+    if (length === 0) {
+      return [];
+    }
+    const link = LinkPreview.cutAtIriTerminator(found.slice(0, length));
+    return [getHttpsUpgrade(link, claimsHttpsUpgrade) ?? link];
+  });
 }
 
 export function resetLinkPreview(conversationId?: string): void {

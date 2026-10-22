@@ -68,12 +68,202 @@ export function isValidLink(maybeUrl: string | undefined): boolean {
 
 export function shouldPreviewHref(href: string): boolean {
   const url = maybeParseUrl(href);
-  return Boolean(
-    url &&
-    url.protocol === 'https:' &&
-    !isDomainExcluded(url) &&
-    isLinkSneaky(href) === false
-  );
+  if (!url || url.protocol !== 'https:' || isDomainExcluded(url)) {
+    return false;
+  }
+  const sneaky = isLinkSneaky(href);
+  // Tellomi (PM 2026-10-19, ADR-0063 §5.6): a link with Chinese (or any other visible non-ASCII
+  // text) in its path, query or fragment gets a preview, as Telegram's does. Signal calls such a
+  // link "maybe" sneaky only because of those characters; every other check has passed by then.
+  return sneaky === false || (sneaky === 'maybe' && isPreviewableIri(href));
+}
+
+// Ends a link inside its path, query or fragment: white space (Telegram's set: NBSP, U+2000-200A,
+// U+2028/2029, U+202F, U+3000) and Chinese sentence punctuation, which in Chinese text follows a
+// link with no space. The same table is in the iOS and Android clients.
+const IRI_TERMINATOR =
+  /[\s\u00a0\u2000-\u200a\u2028\u2029\u202f\u3000，。！？；：、）」』】》〉”’]/u;
+// Characters a reader cannot see or that change how the text around them is shown: never part of
+// a previewed link.
+const IRI_HIDDEN = /[\p{Cc}\p{Cf}\p{Co}\p{Cs}\p{Cn}\p{Zl}\p{Zp}]/u;
+const VALID_URI_CHARACTER = /^[A-Za-z0-9%:/?#[\]@!$&'()*+,;=\-._~]$/;
+
+// The path, query and fragment are made of URI characters and visible non-ASCII text only.
+function isPreviewableIri(href: string): boolean {
+  const url = maybeParseUrl(href);
+  if (!url) {
+    return false;
+  }
+  const start = href.indexOf('/', url.protocol.length + 4);
+  for (const ch of start === -1 ? '' : href.slice(start)) {
+    if ((ch.codePointAt(0) ?? 0) < 0x80) {
+      if (!VALID_URI_CHARACTER.test(ch)) {
+        return false;
+      }
+    } else if (IRI_TERMINATOR.test(ch) || IRI_HIDDEN.test(ch)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Tellomi (PM 2026-10-19, ADR-0063 §5.6): how much of a link linkify found may be shown as a
+// clickable link (and previewed, see `findPreviewCandidates`). A link with a character a reader cannot see in it (`IRI_HIDDEN`, the same set
+// that keeps such a link from getting a preview) is not a link at all: 0. linkify keeps Chinese
+// punctuation and what follows it in the link; a hidden character after that punctuation is not
+// part of the link (it already ended there, as on iOS and Android), so then only the part before
+// the punctuation is clickable. The same for ASCII punctuation that ends a link (`.,!?;:'"`|<>` and
+// an unmatched closing bracket, as Android `Linkifier` trims them): `https://signal.org/abc,\u200f next`
+// is `https://signal.org/abc` (PM 2026-10-19, same as iOS and Android). Links without hidden
+// characters are left exactly as they were.
+export function getLinkifiableLength(link: string): number {
+  let index = 0;
+  for (const ch of link) {
+    // Hidden first: U+FEFF is also `\s` in JavaScript, but it is a hidden character, not an end
+    if (IRI_HIDDEN.test(ch)) {
+      const end = trimTrailingLinkPunctuation(link, index);
+      return end < index ? end : 0;
+    }
+    if (IRI_TERMINATOR.test(ch)) {
+      return IRI_HIDDEN.test(link.slice(index)) ? index : link.length;
+    }
+    index += ch.length;
+  }
+  return link.length;
+}
+
+// Punctuation that ends a link rather than belonging to it (Android `Linkifier`
+// TRAILING_PUNCTUATION_TO_TRIM and CLOSING_BRACKETS, iOS `LinkValidator.isTrailingAsciiPunctuation`).
+const TRAILING_LINK_PUNCTUATION = new Set([
+  '.',
+  ',',
+  '!',
+  '?',
+  ';',
+  ':',
+  "'",
+  '"',
+  '`',
+  '|',
+  '<',
+  '>',
+]);
+const CLOSING_BRACKETS = new Map([
+  [')', '('],
+  [']', '['],
+  ['}', '{'],
+]);
+
+function countChar(text: string, ch: string): number {
+  return text.split(ch).length - 1;
+}
+
+function trimTrailingLinkPunctuation(link: string, initialEnd: number): number {
+  let end = initialEnd;
+  while (end > 0) {
+    const ch = link[end - 1] ?? '';
+    if (TRAILING_LINK_PUNCTUATION.has(ch)) {
+      end -= 1;
+      continue;
+    }
+    const opener = CLOSING_BRACKETS.get(ch);
+    if (opener !== undefined) {
+      const before = link.slice(0, end - 1);
+      if (countChar(before, ch) >= countChar(before, opener)) {
+        end -= 1;
+        continue;
+      }
+    }
+    break;
+  }
+  return end;
+}
+
+// Tellomi (PM 2026-10-19, ADR-0063 §5.6): the links of a received or imported body that may have a
+// preview, cut the same way as they are shown (`getLinkifiableLength`). A link with a hidden
+// character in it is not one of them.
+export function findLinkifiableLinks(text: string): Array<string> {
+  return findLinks(text).flatMap(link => {
+    const length = getLinkifiableLength(link);
+    return length === 0 ? [] : [link.slice(0, length)];
+  });
+}
+
+const IRI_HIDDEN_GLOBAL = new RegExp(IRI_HIDDEN.source, 'gu');
+
+function isSameOrLeadingPart(url: string, visible: string): boolean {
+  const bare = url.replace(/\/+$/, '');
+  if (!bare || !visible.startsWith(bare)) {
+    return false;
+  }
+  const next = visible.charAt(bare.length);
+  return next === '' || next === '/' || next === '?' || next === '#';
+}
+
+// Tellomi (PM 2026-10-19, ADR-0063 §5.6): whether a received or imported preview is for a link with
+// a hidden character in it, so it is dropped even when rust/links' decision (which does not
+// require the URL exactly as it is in the body) would keep it: its URL has a hidden character, or
+// it is (the start of) what a reader sees of such a link in the body, and no clean link in the
+// body is the same. Examples: body `https://signal.org/abc\ufeff` or `https://sig\u200bnal.org/abc`
+// with a preview for `https://signal.org/abc`; body `https://signal.org/a\u2060b` with a preview
+// for `https://signal.org` (where NSDataDetector ends such a link).
+export function isPreviewOfHiddenCharacterLink(
+  url: string,
+  body: string | null | undefined
+): boolean {
+  if (IRI_HIDDEN.test(url)) {
+    return true;
+  }
+  const links = findLinks(body ?? '');
+  const linkifiable = findLinkifiableLinks(body ?? '');
+  if (linkifiable.some(link => isSameOrLeadingPart(url, link))) {
+    return false;
+  }
+  // A hidden character glued to the start of a link (`看 \u200bhttps://signal.org/abc`): linkify
+  // finds no link there at all, as on Android
+  const bare = url.replace(/\/+$/, '');
+  const text = body ?? '';
+  for (
+    let at = bare ? text.indexOf(bare) : -1;
+    at !== -1;
+    at = text.indexOf(bare, at + 1)
+  ) {
+    const previous = Array.from(text.slice(Math.max(0, at - 2), at)).pop();
+    // A line break or tab before a link is a normal start (`\n` is also a control character);
+    // U+FEFF is `\s` in JavaScript but hidden
+    if (
+      previous !== undefined &&
+      IRI_HIDDEN.test(previous) &&
+      (previous === '\ufeff' || !IRI_TERMINATOR.test(previous))
+    ) {
+      return true;
+    }
+  }
+  return links.some(link => {
+    if (!IRI_HIDDEN.test(link)) {
+      return false;
+    }
+    const firstHidden = link.search(IRI_HIDDEN);
+    return (
+      isSameOrLeadingPart(url, link.slice(0, firstHidden)) ||
+      isSameOrLeadingPart(url, link.replace(IRI_HIDDEN_GLOBAL, ''))
+    );
+  });
+}
+
+// `https://zh.wikipedia.org/wiki/中国，很好` → `https://zh.wikipedia.org/wiki/中国`: linkify keeps
+// Chinese punctuation and the text after it in the link (PM 2026-10-19, ADR-0063 §5.6).
+export function cutAtIriTerminator(link: string): string {
+  const url = maybeParseUrl(link);
+  if (!url) {
+    return link;
+  }
+  const start = link.indexOf('/', url.protocol.length + 4);
+  if (start === -1) {
+    return link;
+  }
+  const match = IRI_TERMINATOR.exec(link.slice(start));
+  return match ? link.slice(0, start + match.index) : link;
 }
 
 export function isValidLinkPreview(
@@ -97,6 +287,22 @@ export function isValidLinkPreview(
   }
 
   return true;
+}
+
+// Tellomi (PM 2026-10-19, ADR-0063 §5.6): `isValidLinkPreview` against the links of `body` as they
+// are shown (`findLinkifiableLinks`), and never for a link with a hidden character in it
+// (`isPreviewOfHiddenCharacterLink`). For a preview received or imported with its message.
+export function isValidLinkPreviewForBody(
+  body: string | null | undefined,
+  preview: LinkPreviewType | Backups.LinkPreview.Params,
+  { isStory }: { isStory: boolean }
+): boolean {
+  if (preview.url && isPreviewOfHiddenCharacterLink(preview.url, body)) {
+    return false;
+  }
+  return isValidLinkPreview(findLinkifiableLinks(body ?? ''), preview, {
+    isStory,
+  });
 }
 
 const EXCLUDED_DOMAINS = [
