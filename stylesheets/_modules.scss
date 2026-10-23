@@ -490,6 +490,14 @@ $message-padding-horizontal: 12px;
   }
 }
 
+// Tellomi: high contrast uses a solid outgoing bubble (white text), no gradient.
+@media (prefers-contrast: more) {
+  .module-message__container--outgoing-ultramarine {
+    background-image: none;
+    background-color: var(--axo-color-surface-message-outgoing);
+  }
+}
+
 .module-message__container--deleted-for-everyone {
   @include mixins.light-theme {
     color: variables.$color-gray-90;

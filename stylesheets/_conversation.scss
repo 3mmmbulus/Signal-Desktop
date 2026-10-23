@@ -33,7 +33,7 @@
   }
 
   @include dark-theme {
-    background-color: $color-gray-95;
+    background-color: var(--axo-color-surface-primary);
   }
 
   .panel {

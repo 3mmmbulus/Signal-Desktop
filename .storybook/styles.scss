@@ -22,7 +22,7 @@
 }
 
 .dark-theme {
-  background-color: variables.$color-gray-95;
+  background-color: var(--axo-color-surface-primary);
   color: variables.$color-gray-05;
 }
 
