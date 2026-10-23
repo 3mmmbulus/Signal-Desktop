@@ -197,8 +197,8 @@
 @layer theme {
   @media (prefers-contrast: more) {
     :root {
-      --axo-color-surface-primary:          light-dark(#fafafa, #191919);
-      --axo-color-surface-secondary:        light-dark(#f5f5f5, #1e1e1e);
+      --axo-color-surface-primary:          light-dark(#ffffff, #000000);
+      --axo-color-surface-secondary:        light-dark(#efeff0, #1c1c1e);
       --axo-color-surface-tertiary:         light-dark(#f0f0f0, #282828);
       --axo-color-surface-quaternary:       light-dark(#e6e6e6, #373737);
       --axo-color-surface-card:             light-dark(#ffffff, --alpha(#969696 / 8%));
@@ -341,8 +341,8 @@
 @theme {
   --axo-color-fill-accent:                     light-dark(#2267f5, #2d70fa);
   --axo-color-fill-accent-pressed:             light-dark(color-mix(in srgb, #2267f5 88%, #000000), color-mix(in srgb, #2d70fa 88%, #ffffff));
-  --axo-color-fill-accent-bright:              light-dark(#b2b9ff, #b2b9ff);
-  --axo-color-fill-accent-bright-pressed:      light-dark(#a8b0ff, #a8b0ff);
+  --axo-color-fill-accent-bright:              light-dark(color-mix(in srgb, #2267f5 35%, #ffffff), color-mix(in srgb, #2d70fa 35%, #ffffff));
+  --axo-color-fill-accent-bright-pressed:      light-dark(color-mix(in srgb, #2267f5 40%, #ffffff), color-mix(in srgb, #2d70fa 40%, #ffffff));
   --axo-color-fill-accent-tint:                light-dark(--alpha(#2267f5 / 6%), --alpha(#2d70fa / 12%));
   --axo-color-fill-accent-tint-pressed:        light-dark(--alpha(#2267f5 / 10%), --alpha(#2d70fa / 16%));
 
@@ -378,8 +378,8 @@
     :root {
       --axo-color-fill-accent:                     light-dark(#0a43b9, #5d92ff);
       --axo-color-fill-accent-pressed:             light-dark(color-mix(in srgb, #0a43b9 88%, #000000), color-mix(in srgb, #5d92ff 88%, #ffffff));
-      --axo-color-fill-accent-bright:              light-dark(#b2b9ff, #b2b9ff);
-      --axo-color-fill-accent-bright-pressed:      light-dark(#a8b0ff, #a8b0ff);
+      --axo-color-fill-accent-bright:              light-dark(color-mix(in srgb, #2267f5 35%, #ffffff), color-mix(in srgb, #2d70fa 35%, #ffffff));
+      --axo-color-fill-accent-bright-pressed:      light-dark(color-mix(in srgb, #2267f5 40%, #ffffff), color-mix(in srgb, #2d70fa 40%, #ffffff));
       --axo-color-fill-accent-tint:                light-dark(--alpha(#2267f5 / 10%), --alpha(#2d70fa / 18%));
       --axo-color-fill-accent-tint-pressed:        light-dark(--alpha(#2267f5 / 14%), --alpha(#2d70fa / 22%));
 
