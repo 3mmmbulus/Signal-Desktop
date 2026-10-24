@@ -487,9 +487,10 @@
     :root {
       /* Tellomi (WCAG 1.4.11, PM 2026-10-24): control edges >= 3:1 against what is next to them.
          primary 50%: field / radio / checkbox on the page or secondary background, 3.44:1 at least;
-         secondary 56%: checkbox, disabled switch, segmented thumb on its track, 3.65:1 at least. */
+         secondary 64% (was 56%): checkbox, disabled switch, segmented thumb on its track
+         4.93:1 at least, segmented track edge 5.97:1 at least (light on #efeff0; dark 6.10:1). */
       --axo-color-border-primary:               light-dark(--alpha(#000000 / 50%), --alpha(#ffffff / 50%));
-      --axo-color-border-secondary:             light-dark(--alpha(#000000 / 56%), --alpha(#ffffff / 56%));
+      --axo-color-border-secondary:             light-dark(--alpha(#000000 / 64%), --alpha(#ffffff / 64%));
       --axo-color-border-tertiary:              light-dark(--alpha(#000000 / 70%), --alpha(#ffffff / 70%));
       --axo-color-border-selected:              light-dark(#3243ff, #c9ceff);
       --axo-color-border-selected-oncolor:      light-dark(#fafafa, #fafafa);
