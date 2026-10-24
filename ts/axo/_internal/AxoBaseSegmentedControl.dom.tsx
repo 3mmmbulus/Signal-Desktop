@@ -79,7 +79,12 @@ export namespace ExperimentalAxoBaseSegmentedControl {
   );
 
   const RootStyles = variants<Variant>(`AxoBaseSegmentedControl.Variant`, {
-    track: tw(baseRootStyles, 'bg-primary'),
+    track: tw(
+      baseRootStyles,
+      'bg-primary',
+      // Tellomi (WCAG 1.4.11): in high contrast the track has an edge, 3:1 against the page.
+      'contrast-more:border contrast-more:border-secondary'
+    ),
     'no-track': baseRootStyles,
   });
 
@@ -95,7 +100,12 @@ export namespace ExperimentalAxoBaseSegmentedControl {
       // Tellomi (WCAG 1.4.11): in high contrast the thumb has an edge, 3:1 against the track.
       'contrast-more:border contrast-more:border-secondary'
     ),
-    'no-track': tw(baseIndicatorStyles, 'bg-secondary text-primary'),
+    'no-track': tw(
+      baseIndicatorStyles,
+      'bg-secondary text-primary',
+      // Tellomi (WCAG 1.4.11): without a track the selected pill needs its own edge in high contrast.
+      'contrast-more:border contrast-more:border-secondary'
+    ),
   });
 
   /**
