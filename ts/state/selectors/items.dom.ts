@@ -187,6 +187,12 @@ export const getPreferredReactionEmoji = createSelector(
     )
 );
 
+// Tellomi (M7 §3.4): our own read receipt setting, which also decides whether reads are shown.
+export const getReadReceiptsEnabled = createSelector(
+  getItems,
+  (state: ItemsStateType): boolean => state['read-receipt-setting'] ?? false
+);
+
 export const getHasSetMyStoriesPrivacy = createSelector(
   getItems,
   (state: ItemsStateType): boolean => Boolean(state.hasSetMyStoriesPrivacy)

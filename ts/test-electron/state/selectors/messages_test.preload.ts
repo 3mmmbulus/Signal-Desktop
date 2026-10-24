@@ -617,7 +617,7 @@ describe('state/selectors/messages', () => {
       );
     });
 
-    it('returns "delivered" if the message was delivered to at least one person, but no "higher"', () => {
+    it('returns "sent" (Tellomi M7: delivered is one tick) if the message was delivered to at least one person, but no "higher"', () => {
       const message = createMessage({
         sendStateByConversationId: {
           [ourConversationId]: {
@@ -641,7 +641,30 @@ describe('state/selectors/messages', () => {
 
       assert.strictEqual(
         getMessagePropStatus(message, ourConversationId),
-        'delivered'
+        'sent'
+      );
+    });
+
+    it('Tellomi M7: hides "read" while our read receipts are off', () => {
+      const message = createMessage({
+        sendStateByConversationId: {
+          [ourConversationId]: {
+            status: SendStatus.Sent,
+            updatedAt: Date.now(),
+          },
+          [uuid()]: {
+            status: SendStatus.Read,
+            updatedAt: Date.now(),
+          },
+        },
+      });
+      assert.strictEqual(
+        getMessagePropStatus(message, ourConversationId, false),
+        'sent'
+      );
+      assert.strictEqual(
+        getMessagePropStatus(message, ourConversationId, true),
+        'read'
       );
     });
 

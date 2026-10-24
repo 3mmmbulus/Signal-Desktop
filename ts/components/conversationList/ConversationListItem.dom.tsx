@@ -21,6 +21,7 @@ import type { ConversationType } from '../../state/ducks/conversations.preload.t
 import type { BadgeType } from '../../badges/types.std.ts';
 import { isSignalConversation } from '../../util/isSignalConversation.dom.ts';
 import { RenderLocation } from '../conversation/MessageTextRenderer.dom.tsx';
+import { useTellomiSendingIndicatorHidden } from '../../hooks/useTellomiSendingIndicatorHidden.std.ts';
 
 const EMPTY_OBJECT = Object.freeze(Object.create(null));
 const MESSAGE_STATUS_ICON_CLASS_NAME = `${MESSAGE_TEXT_CLASS_NAME}__status-icon`;
@@ -132,6 +133,20 @@ export const ConversationListItem: FunctionComponent<Props> = memo(
       </>
     );
 
+    // Tellomi (M7 §3.2): a text-only last message waits 2 seconds before its spinner shows.
+    const tellomiSendingSince =
+      lastMessage && !lastMessage.deletedForEveryone
+        ? lastMessage.tellomiSendingSince
+        : undefined;
+    const isSendingIndicatorHidden = useTellomiSendingIndicatorHidden({
+      status:
+        lastMessage && !lastMessage.deletedForEveryone
+          ? lastMessage.status
+          : undefined,
+      isTextOnly: tellomiSendingSince != null,
+      sentAt: tellomiSendingSince,
+    });
+
     let headerDate: number | undefined = lastUpdated;
     let messageText: ReactNode = null;
     let messageStatusIcon: ReactNode = null;
@@ -210,6 +225,9 @@ export const ConversationListItem: FunctionComponent<Props> = memo(
               MESSAGE_STATUS_ICON_CLASS_NAME,
               `${MESSAGE_STATUS_ICON_CLASS_NAME}--${lastMessage.status}`
             )}
+            style={
+              isSendingIndicatorHidden ? { visibility: 'hidden' } : undefined
+            }
           />
         );
       }

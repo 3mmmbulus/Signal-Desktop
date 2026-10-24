@@ -129,6 +129,7 @@ import {
   getDefaultConversationColor,
   getHasMediaBackups,
   getHasUnidentifiedDeliveryIndicators,
+  getReadReceiptsEnabled,
 } from './items.dom.ts';
 import {
   getConversationSelector,
@@ -210,6 +211,7 @@ import { Emoji } from '../../axo/emoji.std.ts';
 import { isDownloadableOrBackfillable } from '../../util/downloadAttachment.preload.ts';
 import { getTellomiBubbleCaption } from '../../util/tellomiCaptions.std.ts';
 import { getTellomiViewOnceSeconds } from '../../util/tellomiViewOnceTimer.std.ts';
+import { tellomiDisplayStatus } from '../../util/tellomiMessageStatus.std.ts';
 
 const { groupBy, isEmpty, isNumber, isObject, map } = lodash;
 
@@ -259,6 +261,8 @@ export type GetPropsForBubbleOptions = Readonly<{
   // Tellomi (card-visual §5.2): reads of this device's own data for first-party link cards. Only
   // the timeline passes it; without it those cards show what the URL alone says.
   linkLocalLookup?: LinkLocalLookupType;
+  // Tellomi (M7 §3.4): our own read receipt setting; while off, no read / viewed is shown.
+  readReceiptsEnabled?: boolean;
 }>;
 
 export function hasErrors(
@@ -980,6 +984,7 @@ export type GetPropsForMessageOptions = Pick<
   | 'hasMediaBackups'
   | 'getStoryReplyAttachment'
   | 'linkLocalLookup'
+  | 'readReceiptsEnabled'
 >;
 
 function getTextAttachment(
@@ -1266,7 +1271,11 @@ const getPropsForMessage = (
     isVoiceMessagePlayed: isVoiceMessagePlayed(message, ourConversationId),
     readStatus: message.readStatus ?? ReadStatus.Read,
     selectedReaction,
-    status: getMessagePropStatus(message, ourConversationId),
+    status: getMessagePropStatus(
+      message,
+      ourConversationId,
+      options.readReceiptsEnabled ?? true
+    ),
     text,
     textDirection: getTextDirection(text),
     timestamp: getMessageSentTimestamp(message, { includeEdits: false, log }),
@@ -1294,6 +1303,7 @@ export const getMessagePropsSelector = createSelector(
   getDefaultConversationColor,
   getHasMediaBackups,
   getStoryReplyAttachmentSelector,
+  getReadReceiptsEnabled,
   (
     conversationSelector,
     ourConversationId,
@@ -1309,7 +1319,8 @@ export const getMessagePropsSelector = createSelector(
     selectedMessageIds,
     defaultConversationColor,
     hasMediaBackups,
-    getStoryReplyAttachment
+    getStoryReplyAttachment,
+    readReceiptsEnabled
   ) =>
     (message: MessageWithUIFieldsType) => {
       const contactNameColors = cachedConversationMemberColorsSelector(
@@ -1332,6 +1343,7 @@ export const getMessagePropsSelector = createSelector(
         defaultConversationColor,
         hasMediaBackups,
         getStoryReplyAttachment,
+        readReceiptsEnabled,
       });
     }
 );
@@ -2328,7 +2340,9 @@ export function getMessagePropStatus(
     | 'sendStateByConversationId'
     | 'type'
   >,
-  ourConversationId: string | undefined
+  ourConversationId: string | undefined,
+  // Tellomi (M7): our own read receipt setting; callers without it get Signal's read display.
+  readReceiptsEnabled = true
 ): LastMessageStatus | undefined {
   const {
     deletedForEveryone,
@@ -2397,19 +2411,19 @@ export function getMessagePropStatus(
   ) {
     return isSent(highestSuccessfulStatus) ? 'partial-sent' : 'error';
   }
+  let status: LastMessageStatus = 'sending';
   if (isViewed(highestSuccessfulStatus)) {
-    return 'viewed';
+    status = 'viewed';
+  } else if (isRead(highestSuccessfulStatus)) {
+    status = 'read';
+  } else if (isDelivered(highestSuccessfulStatus)) {
+    status = 'delivered';
+  } else if (isSent(highestSuccessfulStatus)) {
+    status = 'sent';
   }
-  if (isRead(highestSuccessfulStatus)) {
-    return 'read';
-  }
-  if (isDelivered(highestSuccessfulStatus)) {
-    return 'delivered';
-  }
-  if (isSent(highestSuccessfulStatus)) {
-    return 'sent';
-  }
-  return 'sending';
+  // Tellomi (M7 §3.1): one tick = sent (delivered is folded in), two ticks = read, and only while
+  // our own read receipts are on.
+  return tellomiDisplayStatus(status, readReceiptsEnabled);
 }
 
 function getDeletedForEveryoneByAdmin(
@@ -3061,6 +3075,7 @@ function getMessageDetailRecipients(
     ourAci: AciString | undefined;
     ourConversationId: string;
     ourNumber: string | undefined;
+    readReceiptsEnabled?: boolean;
   }
 ): ReadonlyArray<SmartMessageDetailContact> {
   const {
@@ -3069,6 +3084,7 @@ function getMessageDetailRecipients(
     ourAci,
     ourConversationId,
     ourNumber,
+    readReceiptsEnabled = true,
   } = options;
 
   const {
@@ -3148,8 +3164,21 @@ function getMessageDetailRecipients(
     }
 
     const statusUpdatedAt = sendState?.updatedAt;
-    const statusTimestamp =
+    let statusTimestamp =
       statusUpdatedAt === message.timestamp ? undefined : statusUpdatedAt;
+
+    // Tellomi (M7 §3.6): while our read receipts are off, nobody's read / viewed is shown here
+    // either. It shows as delivered without a time: the time kept is the read time, not the
+    // delivery time (same as Signal-Android #411). Note to Self keeps its own read.
+    if (
+      !readReceiptsEnabled &&
+      id !== ourConversationId &&
+      status &&
+      (isRead(status) || isViewed(status))
+    ) {
+      status = SendStatus.Delivered;
+      statusTimestamp = undefined;
+    }
 
     return {
       ...conversationSelector(id),
@@ -3179,6 +3208,7 @@ export const getMessageDetailsSelector = createSelector(
   getHasUnidentifiedDeliveryIndicators,
   getHasMediaBackups,
   getStoryReplyAttachmentSelector,
+  getReadReceiptsEnabled,
   (
     accountSelector,
     cachedConversationMemberColorsSelector,
@@ -3195,7 +3225,8 @@ export const getMessageDetailsSelector = createSelector(
     defaultConversationColor,
     hasUnidentifiedDeliveryIndicators,
     hasMediaBackups,
-    getStoryReplyAttachment
+    getStoryReplyAttachment,
+    readReceiptsEnabled
   ): ((messageId: string) => SmartMessageDetailPropsType | undefined) =>
     (messageId: string) => {
       if (!messageLookup || !ourConversationId) {
@@ -3228,6 +3259,7 @@ export const getMessageDetailsSelector = createSelector(
           ourAci,
           ourConversationId,
           ourNumber,
+          readReceiptsEnabled,
         });
       }
 
@@ -3250,6 +3282,7 @@ export const getMessageDetailsSelector = createSelector(
           defaultConversationColor,
           hasMediaBackups,
           getStoryReplyAttachment,
+          readReceiptsEnabled,
         }),
         receivedAt: message.received_at_ms ?? message.received_at ?? 0,
       };

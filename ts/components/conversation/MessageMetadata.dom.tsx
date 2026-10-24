@@ -21,6 +21,7 @@ import { SizeObserver } from '../../hooks/useSizeObserver.dom.tsx';
 import { AxoSymbol } from '../../axo/AxoSymbol.dom.tsx';
 import { tw } from '../../axo/tw.dom.tsx';
 import { AxoConfirmDialog } from '../../axo/AxoConfirmDialog.dom.tsx';
+import { useTellomiSendingIndicatorHidden } from '../../hooks/useTellomiSendingIndicatorHidden.std.ts';
 
 type PropsType = {
   canRetryDeleteForEveryone: boolean;
@@ -45,6 +46,8 @@ type PropsType = {
   retryMessageSend: (messageId: string) => unknown;
   showEditHistoryModal?: (id: string) => unknown;
   status?: MessageStatusType;
+  // Tellomi (M7 §3.2): no real attachment, so the sending spinner waits 2 seconds.
+  tellomiIsTextOnly?: boolean;
   textPending?: boolean;
   timestamp: number;
 };
@@ -79,6 +82,7 @@ export const MessageMetadata = forwardRef<HTMLDivElement, Readonly<PropsType>>(
       retryMessageSend,
       showEditHistoryModal,
       status,
+      tellomiIsTextOnly = false,
       textPending,
       timestamp,
     },
@@ -87,6 +91,11 @@ export const MessageMetadata = forwardRef<HTMLDivElement, Readonly<PropsType>>(
     const [confirmationType, setConfirmationType] = useState<
       ConfirmationType | undefined
     >();
+    const isSendingIndicatorHidden = useTellomiSendingIndicatorHidden({
+      status,
+      isTextOnly: tellomiIsTextOnly && !deletedForEveryone,
+      sentAt: timestamp,
+    });
     const withImageNoCaption = !isSticker && !hasText && isShowingImage;
     const metadataDirection = isSticker ? undefined : direction;
 
@@ -291,6 +300,9 @@ export const MessageMetadata = forwardRef<HTMLDivElement, Readonly<PropsType>>(
               'module-message__metadata__status-icon',
               `module-message__metadata__status-icon--${status}`
             )}
+            style={
+              isSendingIndicatorHidden ? { visibility: 'hidden' } : undefined
+            }
           />
         ) : null}
         {confirmation}

@@ -31,6 +31,7 @@ import {
 import {
   getDefaultConversationColor,
   getHasMediaBackups,
+  getReadReceiptsEnabled,
 } from './items.dom.ts';
 import { getActiveCall, getCallSelector } from './calling.std.ts';
 import {
@@ -98,6 +99,7 @@ export const getTimelineItem = (
   const selectedMessageIds = getSelectedMessageIds(state);
   const defaultConversationColor = getDefaultConversationColor(state);
   const hasMediaBackups = getHasMediaBackups(state);
+  const readReceiptsEnabled = getReadReceiptsEnabled(state);
   const getStoryReplyAttachment = message.storyReplyContext
     ? getStoryReplyAttachmentSelector(state)
     : noStoryReplyAttachment;
@@ -142,6 +144,7 @@ export const getTimelineItem = (
     hasMediaBackups,
     getStoryReplyAttachment,
     linkLocalLookup,
+    readReceiptsEnabled,
   });
 };
 

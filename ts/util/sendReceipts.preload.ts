@@ -15,6 +15,8 @@ import { messageSender } from '../textsecure/SendMessage.preload.ts';
 import { itemStorage } from '../textsecure/Storage.preload.ts';
 import { shouldSendToDirectConversation } from '../jobs/helpers/shouldSendToConversation.preload.ts';
 import { strictAssert } from './assert.std.ts';
+import { DataReader } from '../sql/Client.preload.ts';
+import { tellomiWereReadReceiptsEnabledAt } from './tellomiMessageStatus.std.ts';
 
 const { chunk, map } = lodash;
 
@@ -54,6 +56,17 @@ export async function sendReceipts({
   if (requiresUserSetting && !itemStorage.get('read-receipt-setting')) {
     log.info('requires user setting. Not sending these receipts');
     return;
+  }
+
+  // Tellomi (M7 §3.4 rule 3): a message that arrived while read receipts were off never gets a
+  // read / viewed receipt, even after they are turned on. Stories keep their own setting. A
+  // message that cannot be found is skipped (rather not send).
+  if (requiresUserSetting) {
+    // oxlint-disable-next-line no-param-reassign
+    receipts = await tellomiFilterReceiptsByArrival(receipts, log);
+    if (!receipts.length) {
+      return;
+    }
   }
 
   log.info(`Starting receipt send of type ${type}`);
@@ -162,4 +175,36 @@ export async function sendReceipts({
       });
     })
   );
+}
+
+async function tellomiFilterReceiptsByArrival(
+  receipts: ReadonlyArray<Receipt>,
+  log: LoggerType
+): Promise<ReadonlyArray<Receipt>> {
+  const history = itemStorage.get('tellomi-read-receipt-history');
+  const currentlyEnabled = itemStorage.get('read-receipt-setting', false);
+  const messages = await DataReader.getMessagesById(
+    receipts.map(receipt => receipt.messageId)
+  );
+  const byId = new Map(messages.map(message => [message.id, message]));
+  const kept = receipts.filter(receipt => {
+    const message = byId.get(receipt.messageId);
+    if (!message) {
+      return false;
+    }
+    if (message.type === 'story') {
+      return true;
+    }
+    return tellomiWereReadReceiptsEnabledAt(
+      history,
+      currentlyEnabled,
+      message.received_at_ms ?? message.timestamp
+    );
+  });
+  if (kept.length !== receipts.length) {
+    log.info(
+      `sendReceipts: ${receipts.length - kept.length} receipt(s) not sent, their messages arrived while read receipts were off`
+    );
+  }
+  return kept;
 }

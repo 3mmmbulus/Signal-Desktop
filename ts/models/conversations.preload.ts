@@ -288,6 +288,7 @@ import { maybeNotify } from '../messages/maybeNotify.preload.ts';
 import { missingCaseError } from '../util/missingCaseError.std.ts';
 import * as Message from '../types/Message2.preload.ts';
 import { itemStorage } from '../textsecure/Storage.preload.ts';
+import { tellomiIsTextOnlyMessage } from '../util/tellomiMessageStatus.std.ts';
 import { isUsernameValid } from '../util/Username.dom.ts';
 import type { Emoji } from '../axo/emoji.std.ts';
 import { canConversationOnlyBeMutedAlways } from '../conversations/canConversationOnlyBeMutedAlways.dom.ts';
@@ -4691,6 +4692,7 @@ export class ConversationModel {
     | 'lastMessagePrefix'
     | 'lastMessageAuthor'
     | 'lastMessageStatus'
+    | 'tellomiLastMessageSendingSince'
     | 'lastMessageReceivedAt'
     | 'lastMessageReceivedAtMs'
     | 'timestamp'
@@ -4722,6 +4724,9 @@ export class ConversationModel {
     const notificationData = preview
       ? getNotificationDataForMessage(preview)
       : undefined;
+    const lastMessageStatus = preview
+      ? getMessagePropStatus(preview, ourConversationId)
+      : undefined;
 
     return {
       lastMessage:
@@ -4731,9 +4736,13 @@ export class ConversationModel {
       lastMessageBodyRanges: notificationData?.bodyRanges,
       lastMessagePrefix: notificationData?.emoji,
       lastMessageAuthor: preview ? getMessageAuthorText(preview) : undefined,
-      lastMessageStatus: preview
-        ? getMessagePropStatus(preview, ourConversationId)
-        : undefined,
+      lastMessageStatus,
+      tellomiLastMessageSendingSince:
+        lastMessageStatus === 'sending' &&
+        preview &&
+        tellomiIsTextOnlyMessage(preview)
+          ? preview.sent_at || preview.timestamp
+          : undefined,
       lastMessageReceivedAt,
       lastMessageReceivedAtMs,
       timestamp,
