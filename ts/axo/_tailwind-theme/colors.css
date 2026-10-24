@@ -294,7 +294,8 @@
       --axo-color-fill-secondary-pressed: light-dark(--alpha(#7d7d7d / 28%), --alpha(#969696 / 32%));
       --axo-color-fill-tertiary:          light-dark(--alpha(#7d7d7d / 32%), --alpha(#969696 / 36%));
       --axo-color-fill-tertiary-pressed:  light-dark(--alpha(#7d7d7d / 36%), --alpha(#969696 / 40%));
-      --axo-color-fill-control:           light-dark(--alpha(#969696 / 20%));
+      /* Tellomi: was light-dark() with one argument (invalid, so the control was transparent); same as the normal block (PM). */
+      --axo-color-fill-control:           light-dark(#ffffff, --alpha(#969696 / 12%));
       --axo-color-fill-control-pressed:   light-dark(#fafafa, --alpha(#969696 / 24%));
       --axo-color-fill-inverted:          light-dark(#232323, #ebebeb);
       /* Tellomi (DESIGN.md §1.1): pressed #dedee0 under label-primary-inverted 15.63:1, secondary 7.36:1. */
