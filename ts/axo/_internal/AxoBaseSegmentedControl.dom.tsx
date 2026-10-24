@@ -91,7 +91,9 @@ export namespace ExperimentalAxoBaseSegmentedControl {
   const IndicatorStyles = variants<Variant>(`AxoBaseSegmentedControl.Variant`, {
     track: tw(
       baseIndicatorStyles,
-      'bg-control text-primary shadow-elevation-1'
+      'bg-control text-primary shadow-elevation-1',
+      // Tellomi (WCAG 1.4.11): in high contrast the thumb has an edge, 3:1 against the track.
+      'contrast-more:border contrast-more:border-secondary'
     ),
     'no-track': tw(baseIndicatorStyles, 'bg-secondary text-primary'),
   });
