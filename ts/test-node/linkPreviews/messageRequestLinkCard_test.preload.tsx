@@ -342,7 +342,8 @@ describe('card of a link in a message request', () => {
       assert.strictEqual(preview.url, BILIBILI);
     });
 
-    it('is drawn as the domain and a link glyph: not clickable, not tinted, no picture', () => {
+    // DESIGN.md §9: the domain-only strip, the one style with the compass (no link glyph).
+    it('is drawn as the domain and the compass: not clickable, not tinted, no picture', () => {
       const drawn = draw(
         props(
           SENDER,
@@ -365,9 +366,19 @@ describe('card of a link in a message request', () => {
       assert.notInclude(drawn.card, 'tabindex');
       assert.include(
         drawn.card,
-        '<div class="module-message__link-preview__title">bilibili.com</div>'
+        '<div class="module-message__link-card__domain-only">bilibili.com</div>'
       );
-      assert.include(drawn.card, 'module-message__link-preview__link-icon');
+      assert.strictEqual(
+        drawn.card.split('module-message__link-preview__compass').length - 1,
+        1,
+        'the compass, once'
+      );
+      assert.notInclude(drawn.card, 'module-message__link-preview__link-icon');
+      assert.notInclude(drawn.card, 'module-message__link-card__title');
+      // Never tinted: neutral grey, no colours of a picture.
+      assert.notInclude(drawn.card, 'module-message__link-preview--tinted');
+      assert.notInclude(drawn.card, '--link-card-background');
+      assert.notInclude(drawn.card, '--link-card-text');
       assert.notInclude(drawn.card, '<img');
       assert.notInclude(drawn.card, 'Sender title');
       assert.notInclude(drawn.card, 'Sender description');

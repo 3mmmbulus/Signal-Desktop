@@ -194,4 +194,47 @@ describe('shouldUseFullSizeLinkPreviewImage', () => {
       );
     });
   });
+  // DESIGN.md §9 (as iOS b0a480fc): a card rust/links decided on but gave no layout is an icon
+  // strip, never a large image by the old threshold.
+  describe('when rust/links gave a card but no layout', () => {
+    const card = {
+      level: 'generic',
+      provider: null,
+      provider_name: null,
+      kind: null,
+      route: null,
+      title: 'Foo Bar',
+      description: null,
+      attrs: [],
+      domain: 'example.com',
+      official_badge: false,
+      first_party: null,
+      lookalike: null,
+      show_image: true,
+      tintable: true,
+      payment: false,
+      reason: null,
+    } as const;
+
+    it('is not a large image', () => {
+      assert.isFalse(
+        shouldUseFullSizeLinkPreviewImage({
+          ...baseLinkPreview,
+          image: fakeAttachment({ width: 1200, height: 630 }),
+          card,
+        })
+      );
+    });
+
+    it('still is, by its layout, when rust/links gave large_image', () => {
+      assert.isTrue(
+        shouldUseFullSizeLinkPreviewImage({
+          ...baseLinkPreview,
+          image: fakeAttachment({ width: 1200, height: 630 }),
+          card,
+          layout: 'large_image',
+        })
+      );
+    });
+  });
 });

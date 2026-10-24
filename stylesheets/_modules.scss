@@ -1267,6 +1267,111 @@ $link-card-icon-gap: 6px;
   }
 }
 
+// Tellomi (DESIGN.md §9, as iOS b0a480fc / Android 7cc5fad2): a third-party card in the one style.
+// Neutral grey (#e9e9eb / #2c2c2e); title (two lines, bold) and domain (grey); a 36px icon or the
+// 26px compass at the end, 10px from the text. Padding (top / left / bottom / right) 9 / 14 / 9 / 10
+// with an item at the end, 9 / 14 / 10 / 14 without.
+.module-message__link-card {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding-block: 9px;
+  padding-inline: 14px 10px;
+  background-color: var(
+    --axo-color-surface-link-card,
+    light-dark(#e9e9eb, #2c2c2e)
+  );
+  color: var(--axo-color-label-primary);
+
+  &--no-trailing {
+    padding-block: 9px 10px;
+    padding-inline: 14px;
+  }
+}
+
+.module-message__link-card__text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.module-message__link-card__title {
+  @include mixins.font-body-1-bold;
+
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow-wrap: break-word;
+  color: var(--axo-color-label-primary);
+}
+
+.module-message__link-card__badge {
+  @include mixins.font-caption-bold;
+
+  margin-inline-start: 4px;
+  color: var(--axo-color-label-secondary);
+}
+
+.module-message__link-card__domain,
+.module-message__link-card__domain-only {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--axo-color-label-secondary);
+}
+
+.module-message__link-card__domain {
+  @include mixins.font-body-2;
+}
+
+// The domain alone is the card's only line: one size up, as iOS draws it.
+.module-message__link-card__domain-only {
+  @include mixins.font-body-1;
+}
+
+.module-message__link-card__icon {
+  display: flex;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  overflow: hidden;
+  border-radius: 8px;
+
+  img {
+    display: block;
+    width: 36px;
+    height: 36px;
+    object-fit: cover;
+  }
+}
+
+.module-message__link-preview__compass {
+  display: block;
+  flex-shrink: 0;
+  color: var(--axo-color-label-secondary);
+}
+
+// Only an icon strip is tinted; the colours come from rust/links as on the older card.
+.module-message__link-preview--tinted {
+  .module-message__link-card {
+    background-color: var(--link-card-background);
+  }
+
+  .module-message__link-card__title {
+    color: var(--link-card-text);
+  }
+
+  .module-message__link-card__domain,
+  .module-message__link-card__badge {
+    color: var(--link-card-text);
+    opacity: 0.75;
+  }
+}
+
 // Tellomi (ADR-0063 §6.1): a domain that imitates a well-known one.
 .module-message__link-preview__title--lookalike {
   @include mixins.light-theme {

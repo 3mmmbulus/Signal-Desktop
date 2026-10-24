@@ -191,6 +191,8 @@
   --axo-color-surface-card:             light-dark(#ffffff, --alpha(#969696 / 8%));
   --axo-color-surface-message-incoming: light-dark(#e9e9e9, #2c2c2e);
   --axo-color-surface-message-outgoing: light-dark(#2267f5, #2267f5);
+  /* Tellomi (DESIGN.md §9): the neutral grey of a link card. */
+  --axo-color-surface-link-card:        light-dark(#e9e9eb, #2c2c2e);
 }
 
 /* prettier-ignore */
@@ -204,6 +206,7 @@
       --axo-color-surface-card:             light-dark(#ffffff, --alpha(#969696 / 8%));
       --axo-color-surface-message-incoming: light-dark(#e9e9e9, #2c2c2e);
       --axo-color-surface-message-outgoing: light-dark(#0a43b9, #0a43b9);
+      --axo-color-surface-link-card:        light-dark(#e9e9eb, #2c2c2e);
     }
   }
 }

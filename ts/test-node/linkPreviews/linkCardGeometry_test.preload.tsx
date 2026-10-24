@@ -186,7 +186,12 @@ function count(markup: string, needle: string): number {
 
 const LINK_ICON = 'module-message__link-preview__link-icon';
 const THUMBNAIL = 'module-image__image';
-const ICON_IMAGE = 'module-message__link-preview__icon-image';
+const COMPASS = 'module-message__link-preview__compass';
+const NO_TRAILING = 'module-message__link-card--no-trailing';
+const TITLE = 'module-message__link-card__title';
+const DOMAIN = 'module-message__link-card__domain"';
+const DOMAIN_ONLY = 'module-message__link-card__domain-only';
+const STRIP_ICON = 'module-message__link-card__icon';
 
 describe('link card geometry in the bubble', () => {
   const contextConfig = window.SignalContext.config as { installPath?: string };
@@ -221,21 +226,27 @@ describe('link card geometry in the bubble', () => {
     _setLinkRegistryForTesting(undefined);
   });
 
-  describe('a card with no picture has the link glyph at its end (§3.2 no-image card)', () => {
-    it('a generic page with no image', () => {
+  // DESIGN.md §9 (iOS b0a480fc, Android 7cc5fad2): a card with a title and no picture is the
+  // title strip, with nothing at its end; the compass is only on the card with nothing but its
+  // domain. The old link glyph is gone from every third-party card.
+  describe('a card with no picture (DESIGN.md §9)', () => {
+    it('a generic page with no image is a title strip with nothing at its end', () => {
       const data = propsOf(`look ${PAGE}`, { url: PAGE, title: 'Page title' });
       const preview = firstPreview(data);
       assert.strictEqual(preview.card?.level, 'generic');
       assert.strictEqual(preview.layout, 'no_image');
 
       const card = drawCard(data);
-      assert.strictEqual(count(card, LINK_ICON), 1, 'the link glyph');
+      assert.include(card, NO_TRAILING);
+      assert.notInclude(card, COMPASS);
+      assert.notInclude(card, LINK_ICON);
+      assert.include(card, TITLE);
       assert.include(card, 'Page title');
       assert.include(card, '163.com');
       assert.notInclude(card, THUMBNAIL);
     });
 
-    it('a brand shell with no bundled icon (a video with no picture falls back to one)', () => {
+    it('a brand shell with no bundled icon is a title strip, no compass', () => {
       const data = propsOf(`look ${BILIBILI}`, {
         url: BILIBILI,
         title: '《柯洁围棋入门课》',
@@ -245,10 +256,13 @@ describe('link card geometry in the bubble', () => {
       // A video needs its picture; without it rust/links has already made a brand shell of it.
       assert.strictEqual(preview.card?.level, 'brand');
       assert.strictEqual(preview.layout, 'no_image');
-      assert.strictEqual(count(drawCard(data), LINK_ICON), 1);
+      const card = drawCard(data);
+      assert.include(card, NO_TRAILING);
+      assert.notInclude(card, COMPASS);
+      assert.notInclude(card, LINK_ICON);
     });
 
-    it('a payment shell, which has no icon and is never tinted', () => {
+    it('a payment shell, which has no icon, no sub line and is never tinted', () => {
       const data = propsOf(ALIPAY, {
         url: ALIPAY,
         title: '支付宝',
@@ -259,18 +273,25 @@ describe('link card geometry in the bubble', () => {
       assert.strictEqual(preview.layout, 'no_image');
 
       const card = drawCard(data);
-      assert.strictEqual(count(card, LINK_ICON), 1);
+      assert.include(card, NO_TRAILING);
+      assert.notInclude(card, COMPASS);
+      assert.notInclude(card, LINK_ICON);
       assert.include(card, 'Alipay');
-      assert.include(card, 'Web page', 'what the link is');
+      assert.notInclude(card, 'Web page', 'no sub line (§9)');
+      assert.notInclude(card, 'module-message__link-preview--tinted');
     });
 
-    it('is still one glyph on the plain-link card', () => {
+    it('the plain-link card is the domain strip, with the compass once', () => {
       const data = propsOf(PAGE, undefined);
       assert.strictEqual(firstPreview(data).card?.level, 'plain_link');
-      assert.strictEqual(count(drawCard(data), LINK_ICON), 1);
+      const card = drawCard(data);
+      assert.strictEqual(count(card, COMPASS), 1);
+      assert.include(card, DOMAIN_ONLY);
+      assert.notInclude(card, TITLE);
+      assert.notInclude(card, LINK_ICON);
     });
 
-    it("has no glyph on Signal's own call link and sticker pack cards", () => {
+    it("has no compass on Signal's own call link and sticker pack cards", () => {
       for (const [link, title] of [
         [CALL_LINK, 'Camping Prep'],
         [STICKER_PACK_LINK, 'Bandit the Cat'],
@@ -279,11 +300,13 @@ describe('link card geometry in the bubble', () => {
         const [first] = data.previews ?? [];
         assert.strictEqual(first?.layout, 'no_image', link);
         assert.isTrue(first?.isCallLink || first?.isStickerPack, link);
-        assert.notInclude(drawCard(data), LINK_ICON, link);
+        const card = drawCard(data);
+        assert.notInclude(card, COMPASS, link);
+        assert.notInclude(card, LINK_ICON, link);
       }
     });
 
-    it('has no glyph on the other shapes', () => {
+    it('has no compass on the other shapes', () => {
       const icon = propsOf(`look ${PAGE}`, {
         url: PAGE,
         title: 'Page title',
@@ -291,8 +314,10 @@ describe('link card geometry in the bubble', () => {
       });
       assert.strictEqual(firstPreview(icon).layout, 'icon');
       let card = drawCard(icon);
+      assert.notInclude(card, COMPASS);
       assert.notInclude(card, LINK_ICON);
-      assert.include(card, ICON_IMAGE);
+      assert.include(card, STRIP_ICON);
+      assert.include(card, THUMBNAIL);
 
       const large = propsOf(`look ${PAGE}`, {
         url: PAGE,
@@ -301,8 +326,10 @@ describe('link card geometry in the bubble', () => {
       });
       assert.strictEqual(firstPreview(large).layout, 'large_image');
       card = drawCard(large);
+      assert.notInclude(card, COMPASS);
       assert.notInclude(card, LINK_ICON);
       assert.include(card, 'module-image-grid');
+      assert.include(card, TITLE);
 
       const brand = propsOf(TAOBAO, {
         url: TAOBAO,
@@ -310,21 +337,43 @@ describe('link card geometry in the bubble', () => {
         rich: TAOBAO_RICH,
       });
       assert.strictEqual(firstPreview(brand).layout, 'icon');
-      assert.isDefined(firstPreview(brand).cardIcon, 'the bundled icon');
+      const { cardIcon } = firstPreview(brand);
+      assert.isDefined(cardIcon, 'the bundled icon');
       card = drawCard(brand);
+      assert.notInclude(card, COMPASS);
       assert.notInclude(card, LINK_ICON);
-      assert.include(card, 'module-message__link-preview__brand-icon');
+      assert.include(card, STRIP_ICON);
+      assert.include(card, `src="${cardIcon?.url}"`);
 
       for (const link of [USER_LINK, GROUP_LINK]) {
         const firstParty = propsOf(link, { url: link, title: 'Book club' });
         assert.strictEqual(firstPreview(firstParty).layout, 'first_party');
-        assert.notInclude(drawCard(firstParty), LINK_ICON, link);
+        card = drawCard(firstParty);
+        assert.notInclude(card, COMPASS, link);
+        assert.notInclude(card, LINK_ICON, link);
       }
+    });
+
+    it('a card with a picture and no layout is an icon strip, never a large image', () => {
+      const data = propsOf(`look ${PAGE}`, {
+        url: PAGE,
+        title: 'Page title',
+        image: { width: 1200, height: 630 },
+      });
+      const first = firstPreview(data);
+      assert.isDefined(first.card);
+      const card = drawCard({
+        ...data,
+        previews: [{ ...first, layout: undefined }],
+      });
+      assert.notInclude(card, 'module-image-grid');
+      assert.include(card, STRIP_ICON);
+      assert.notInclude(card, COMPASS);
     });
   });
 
   describe('a picture of unknown size (audit S6)', () => {
-    it('decides no_image in rust/links, and the picture is not drawn beside the text', () => {
+    it('decides no_image in rust/links: a title strip, the picture not drawn', () => {
       const data = propsOf(`look ${PAGE}`, {
         url: PAGE,
         title: 'Page title',
@@ -339,7 +388,9 @@ describe('link card geometry in the bubble', () => {
       const card = drawCard(data);
       assert.notInclude(card, THUMBNAIL, 'no 72px thumbnail beside the text');
       assert.notInclude(card, '<img');
-      assert.strictEqual(count(card, LINK_ICON), 1, 'the no-image card');
+      assert.include(card, NO_TRAILING);
+      assert.notInclude(card, COMPASS);
+      assert.notInclude(card, LINK_ICON);
       assert.include(card, 'Page title');
     });
 
@@ -357,12 +408,14 @@ describe('link card geometry in the bubble', () => {
       const card = drawCard(data);
       assert.include(card, THUMBNAIL, "Signal's thumbnail beside the text");
       assert.notInclude(card, LINK_ICON);
+      assert.notInclude(card, COMPASS);
+      assert.notInclude(card, 'module-message__link-card');
     });
   });
 
-  describe('the sub line and the domain line are one line each (audit A20)', () => {
-    const SUB_LINE = 'module-message__link-preview__description--one-line';
-    const DOMAIN_LINE = 'module-message__link-preview__footer--one-line';
+  // DESIGN.md §9: no sub line on any third-party card; the title and one domain line.
+  describe('no sub line, one domain line (DESIGN.md §9)', () => {
+    const SUB_LINE = 'module-message__link-preview__description';
 
     it('on a structured card', () => {
       const data = propsOf(`look ${BILIBILI}`, {
@@ -373,22 +426,23 @@ describe('link card geometry in the bubble', () => {
       });
       assert.strictEqual(firstPreview(data).card?.level, 'structured');
       const card = drawCard(data);
-      assert.include(card, SUB_LINE);
-      assert.include(card, DOMAIN_LINE);
+      assert.notInclude(card, SUB_LINE);
+      assert.strictEqual(count(card, DOMAIN), 1);
     });
 
     it('on a brand shell and a generic card', () => {
       const brand = drawCard(
         propsOf(TAOBAO, { url: TAOBAO, title: '淘宝', rich: TAOBAO_RICH })
       );
-      assert.include(brand, SUB_LINE, 'what the link is');
-      assert.include(brand, DOMAIN_LINE);
+      assert.notInclude(brand, SUB_LINE);
+      assert.notInclude(brand, 'Web page', 'what the link is: not shown');
+      assert.strictEqual(count(brand, DOMAIN), 1);
 
       const generic = drawCard(
         propsOf(`look ${PAGE}`, { url: PAGE, title: 'Page title' })
       );
-      assert.notInclude(generic, SUB_LINE, 'a generic card has no sub line');
-      assert.include(generic, DOMAIN_LINE);
+      assert.notInclude(generic, SUB_LINE);
+      assert.strictEqual(count(generic, DOMAIN), 1);
     });
 
     it('but not on a preview without a decision, which keeps the upstream look', () => {
@@ -396,8 +450,7 @@ describe('link card geometry in the bubble', () => {
       const card = drawCard(
         propsOf(`look ${PAGE}`, { url: PAGE, title: 'Page title' })
       );
-      assert.notInclude(card, SUB_LINE);
-      assert.notInclude(card, DOMAIN_LINE);
+      assert.notInclude(card, DOMAIN);
       assert.include(card, 'module-message__link-preview__footer');
     });
   });
