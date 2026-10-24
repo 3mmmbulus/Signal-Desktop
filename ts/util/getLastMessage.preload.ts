@@ -12,6 +12,7 @@ import { stripNewlinesForLeftPane } from './stripNewlinesForLeftPane.std.ts';
 import { itemStorage } from '../textsecure/Storage.preload.ts';
 import { getTitle } from './getTitle.preload.ts';
 import { isDirectConversation } from './whatTypeOfConversation.dom.ts';
+import { tellomiDisplayStatus } from './tellomiMessageStatus.std.ts';
 
 function getNameForAci(
   aci: AciString | null | undefined,
@@ -98,7 +99,14 @@ export function getLastMessage(
     bodyRanges,
     deletedForEveryone: false,
     prefix,
-    status: dropNull(conversationAttrs.lastMessageStatus),
+    // Tellomi (M7 §3.1): same ticks as the bubble; also maps a "delivered" stored before M7.
+    status: tellomiDisplayStatus(
+      dropNull(conversationAttrs.lastMessageStatus),
+      itemStorage.get('read-receipt-setting', false)
+    ),
+    tellomiSendingSince: dropNull(
+      conversationAttrs.tellomiLastMessageSendingSince
+    ),
     text,
   };
 }

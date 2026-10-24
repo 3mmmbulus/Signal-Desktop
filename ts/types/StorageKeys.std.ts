@@ -32,6 +32,7 @@ import type { TellomiRestriction } from '../util/tellomiRestriction.std.ts';
 import type { Emoji } from '../axo/emoji.std.ts';
 import type { PartialRegistrationType } from './StandaloneRegistration.std.ts';
 import type { RegistrationQueueJobState } from '../jobs/registrationJobQueue.preload.ts';
+import type { TellomiReadReceiptChange } from '../util/tellomiMessageStatus.std.ts';
 
 export type AutoDownloadAttachmentType = {
   photos: boolean;
@@ -95,6 +96,8 @@ export type StorageAccessType = {
   'notification-setting': NotificationSettingType;
   'reaction-notification': boolean;
   'read-receipt-setting': boolean;
+  // Tellomi (M7 §3.4): when read receipts were switched on / off, to judge a message by arrival.
+  'tellomi-read-receipt-history': ReadonlyArray<TellomiReadReceiptChange>;
   'sent-media-quality': SentMediaQualitySettingType;
   audioMessage: boolean;
   attachmentMigration_isComplete: boolean;
@@ -501,6 +504,8 @@ export const STORAGE_KEYS_TO_PRESERVE_WHEN_PRIMARY = [
   'blocked-groups',
   'blocked-uuids',
   'read-receipt-setting',
+  // Tellomi (M7 §3.4): goes with the read receipt setting above
+  'tellomi-read-receipt-history',
   'blocked',
   'releaseNotesChatBlocked',
   'releaseNotesChatBlockedAt',

@@ -1168,6 +1168,7 @@ export class Message extends PureComponent<Props, State> {
 
     const {
       attachmentDroppedDueToSize,
+      attachments,
       canRetryDeleteForEveryone,
       deletedForEveryone,
       direction,
@@ -1223,6 +1224,7 @@ export class Message extends PureComponent<Props, State> {
         retryMessageSend={retryMessageSend}
         showEditHistoryModal={showEditHistoryModal}
         status={status}
+        tellomiIsTextOnly={!attachments?.length && !isSticker}
         textPending={textAttachment?.pending}
         timestamp={timestamp}
       />

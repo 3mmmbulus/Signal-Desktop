@@ -379,6 +379,7 @@ export const GENERIC_CLEANUP_FIELDS: Partial<ConversationAttributesType> = {
   lastMessagePrefix: undefined,
   lastMessageAuthor: undefined,
   lastMessageStatus: undefined,
+  tellomiLastMessageSendingSince: undefined,
   lastMessageReceivedAt: undefined,
   lastMessageReceivedAtMs: undefined,
 

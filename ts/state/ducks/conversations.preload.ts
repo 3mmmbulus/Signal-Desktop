@@ -323,6 +323,8 @@ export type LastMessageType = ReadonlyDeep<
       bodyRanges?: HydratedBodyRangesType;
       prefix?: string;
       status?: LastMessageStatus;
+      // Tellomi (M7 §3.2): set when a text-only last message is sending, see getLastMessage.
+      tellomiSendingSince?: number;
       text: string;
     }
   | {

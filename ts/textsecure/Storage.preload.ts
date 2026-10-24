@@ -10,6 +10,7 @@ import { Blocked } from './storage/Blocked.std.ts';
 
 import { DataReader, DataWriter } from '../sql/Client.preload.ts';
 import { createLogger } from '../logging/log.std.ts';
+import { tellomiNextReadReceiptHistory } from '../util/tellomiMessageStatus.std.ts';
 
 const log = createLogger('Storage');
 
@@ -69,9 +70,36 @@ export class Storage implements StorageInterface {
       log.error('Called storage.put before storage is ready. key:', key);
     }
 
+    if (key === 'read-receipt-setting') {
+      await this.#recordTellomiReadReceiptChange(Boolean(value));
+    }
+
     this.#items[key] = value;
     window.reduxActions?.items.putItemExternal(key, value);
     await DataWriter.createOrUpdateItem({ id: key, value });
+  }
+
+  // Tellomi (M7 §3.4 rule 3): every write of the read receipt setting (settings, storage service
+  // sync, linking, backup import) goes through put; a switch is recorded before it takes effect.
+  async #recordTellomiReadReceiptChange(next: boolean): Promise<void> {
+    const history = tellomiNextReadReceiptHistory(
+      this.#items['tellomi-read-receipt-history'],
+      this.#items['read-receipt-setting'],
+      next,
+      Date.now()
+    );
+    if (!history) {
+      return;
+    }
+    this.#items['tellomi-read-receipt-history'] = history;
+    window.reduxActions?.items.putItemExternal(
+      'tellomi-read-receipt-history',
+      history
+    );
+    await DataWriter.createOrUpdateItem({
+      id: 'tellomi-read-receipt-history',
+      value: history,
+    });
   }
 
   public async remove<K extends keyof Access>(key: K): Promise<void> {

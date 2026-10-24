@@ -417,6 +417,9 @@ export type ConversationAttributesType = {
   /** @deprecated Use lastMessageAuthorAci instead */
   lastMessageAuthor?: string | null;
   lastMessageStatus?: LastMessageStatus | null;
+  // Tellomi (M7 §3.2): when the last message, if it is text still sending, was sent; its spinner
+  // in the chat list shows 2 seconds after this.
+  tellomiLastMessageSendingSince?: number | null;
   lastMessageReceivedAt?: number;
   lastMessageReceivedAtMs?: number;
   markedUnread?: boolean;
