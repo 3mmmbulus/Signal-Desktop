@@ -244,7 +244,7 @@
       --axo-color-material-tertiary:           light-dark(#f0f0f0, #282828);
       --axo-color-material-tertiary-pressed:   light-dark(#ebebeb, #2d2d2d);
       --axo-color-material-quaternary:         light-dark(#e6e6e6, #323232);
-      /* Tellomi (DESIGN.md §1.1): pressed #dedee0 under label-primary 15.63:1, label-secondary 7.36:1. */
+      /* Tellomi (DESIGN.md §1.1): pressed #dedee0 under label-primary 15.63:1, label-secondary 7.41:1 (Mac-measured, tellomi测试). */
       --axo-color-material-quaternary-pressed: light-dark(#dedee0, #373737);
       --axo-color-material-dim-primary:        light-dark(#4b4b4b, #4b4b4b);
       --axo-color-material-dim-secondary:      light-dark(#737373, #414141);
