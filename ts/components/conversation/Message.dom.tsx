@@ -2079,22 +2079,25 @@ export class Message extends PureComponent<Props, State> {
         openLinkInWebBrowser(first.url);
       }
     };
-    const contents = firstPartyCard
-      ? this.#renderFirstPartyLinkCard(
-          first,
-          firstPartyCard,
-          isClickable ? openFromKeyboard : undefined
-        )
-      : styleKind && styleText
-        ? this.#renderStyledLinkCard({
-            first,
-            kind: styleKind,
-            text: styleText,
-            brandIcon,
-            officialBadge: display.officialBadge,
-            withContentAbove,
-          })
-        : snapshotContents;
+    let contents: JSX.Element;
+    if (firstPartyCard) {
+      contents = this.#renderFirstPartyLinkCard(
+        first,
+        firstPartyCard,
+        isClickable ? openFromKeyboard : undefined
+      );
+    } else if (styleKind && styleText) {
+      contents = this.#renderStyledLinkCard({
+        first,
+        kind: styleKind,
+        text: styleText,
+        brandIcon,
+        officialBadge: display.officialBadge,
+        withContentAbove,
+      });
+    } else {
+      contents = snapshotContents;
+    }
 
     // The link text is not shown, so the card says where it goes.
     const tooltip = isLinkCardOnly ? first.url : undefined;
