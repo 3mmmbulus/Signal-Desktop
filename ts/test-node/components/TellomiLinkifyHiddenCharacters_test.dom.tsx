@@ -49,9 +49,20 @@ describe('<Linkify /> with hidden characters (Tellomi)', () => {
     assert.deepEqual(anchors('https://zh.wikipedia.org/wiki/中国'), [
       'https://zh.wikipedia.org/wiki/中国',
     ]);
-    assert.deepEqual(anchors('https://zh.wikipedia.org/wiki/中国，很好'), [
-      'https://zh.wikipedia.org/wiki/中国，很好',
-    ]);
+  });
+
+  // tellomi测试 2026-10-25: Chinese punctuation ends the clickable link, not only the preview
+  it('ends the link at Chinese punctuation', () => {
+    for (const after of ['，很好', '…后面', '—后面', '－后面', '．后面']) {
+      const text = `https://zh.wikipedia.org/wiki/中国${after}`;
+      assert.deepEqual(
+        anchors(text),
+        ['https://zh.wikipedia.org/wiki/中国'],
+        JSON.stringify(text)
+      );
+      const html = renderToStaticMarkup(<Linkify text={text} />);
+      assert.include(html, `</a>${after}`);
+    }
   });
 
   // PM 2026-10-19: same as iOS and Android
@@ -105,10 +116,17 @@ describe('extractLinks with hidden characters (Tellomi)', () => {
     assert.deepEqual(links('see https://signal.org/abc'), [
       { start: 4, length: 22, url: 'https://signal.org/abc' },
     ]);
-    const chinese = 'https://zh.wikipedia.org/wiki/中国，很好';
-    assert.deepEqual(links(chinese), [
-      { start: 0, length: chinese.length, url: chinese },
-    ]);
+  });
+
+  it('ends the link at Chinese punctuation', () => {
+    const url = 'https://zh.wikipedia.org/wiki/中国';
+    for (const after of ['，很好', '…后面', '—后面', '－后面', '．后面']) {
+      assert.deepEqual(
+        links(`${url}${after}`),
+        [{ start: 0, length: url.length, url }],
+        JSON.stringify(after)
+      );
+    }
   });
 
   it('ends the link at ASCII end punctuation followed by a hidden character', () => {

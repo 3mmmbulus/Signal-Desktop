@@ -115,7 +115,7 @@ function isPreviewableIri(href: string): boolean {
 // the punctuation is clickable. The same for ASCII punctuation that ends a link (`.,!?;:'"`|<>` and
 // an unmatched closing bracket, as Android `Linkifier` trims them): `https://signal.org/abc,\u200f next`
 // is `https://signal.org/abc` (PM 2026-10-19, same as iOS and Android). Links without hidden
-// characters are left exactly as they were.
+// characters end at Chinese punctuation, too (tellomi测试 2026-10-25).
 export function getLinkifiableLength(link: string): number {
   let index = 0;
   for (const ch of link) {
@@ -125,7 +125,9 @@ export function getLinkifiableLength(link: string): number {
       return end < index ? end : 0;
     }
     if (IRI_TERMINATOR.test(ch)) {
-      return IRI_HIDDEN.test(link.slice(index)) ? index : link.length;
+      // Chinese punctuation ends the clickable link too, not only the preview (「…/中国…后面」
+      // is clickable up to 中国), the same as iOS and Android
+      return trimTrailingLinkPunctuation(link, index);
     }
     index += ch.length;
   }
