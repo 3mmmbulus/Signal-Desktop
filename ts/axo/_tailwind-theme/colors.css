@@ -298,7 +298,7 @@
       --axo-color-fill-control:           light-dark(#ffffff, --alpha(#969696 / 12%));
       --axo-color-fill-control-pressed:   light-dark(#fafafa, --alpha(#969696 / 24%));
       --axo-color-fill-inverted:          light-dark(#232323, #ebebeb);
-      /* Tellomi (DESIGN.md §1.1): pressed #dedee0 under label-primary-inverted 15.63:1, secondary 7.36:1. */
+      /* Tellomi (DESIGN.md §1.1): pressed #dedee0 under label-primary-inverted 15.63:1, secondary 7.41:1 (Mac-measured, tellomi测试). */
       --axo-color-fill-inverted-pressed:  light-dark(#2d2d2d, #dedee0);
       --axo-color-fill-overlay:           light-dark(--alpha(#000000 / 48%), --alpha(#000000 / 64%));
     }
