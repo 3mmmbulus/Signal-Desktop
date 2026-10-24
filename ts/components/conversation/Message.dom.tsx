@@ -58,7 +58,20 @@ import {
   shouldTintLinkCard,
 } from '../../linkPreviews/linkCardVisual.std.ts';
 import type { GetLinkCardTintType } from './LinkPreviewTintFrame.dom.tsx';
+import { LinkCardCompass } from './LinkCardCompass.dom.tsx';
 import { LinkPreviewTintFrame } from './LinkPreviewTintFrame.dom.tsx';
+import {
+  LINK_CARD_STYLE,
+  getLinkCardStyleKind,
+  getLinkCardStyleText,
+  isLinkCardStyleTinted,
+  linkCardShowsCompass,
+  usesLinkCardStyle,
+} from '../../linkPreviews/linkCardStyle.std.ts';
+import type {
+  LinkCardStyleKind,
+  LinkCardStyleText,
+} from '../../linkPreviews/linkCardStyle.std.ts';
 import { getLinkPreviewDisplay } from '../../linkPreviews/linkPreviewDisplay.std.ts';
 import type { FirstPartyCardDisplayType } from '../../linkPreviews/firstPartyCard.std.ts';
 import { getFirstPartyCardDisplay } from '../../linkPreviews/firstPartyCard.std.ts';
@@ -1784,6 +1797,33 @@ export class Message extends PureComponent<Props, State> {
       isMessageRequest: !isMessageRequestAccepted,
     });
 
+    // Tellomi (DESIGN.md §9): a third-party card rust/links decided on is drawn in the one style
+    // of iOS b0a480fc / Android 7cc5fad2: large image, icon strip, title strip, domain strip.
+    const isStyled = usesLinkCardStyle({
+      card: first.card,
+      isCallLink: Boolean(first.isCallLink),
+      isStickerPack: Boolean(first.isStickerPack),
+    });
+    const styleText = isStyled
+      ? getLinkCardStyleText({
+          title: isPlainLink ? undefined : display.title,
+          domain: first.card?.domain ?? (isPlainLink ? display.title : domain),
+          url: first.url,
+        })
+      : undefined;
+    const hasSenderImage = Boolean(first.image && previewHasImage);
+    let styleKind = styleText
+      ? getLinkCardStyleKind({
+          layout: first.layout,
+          hasImage: Boolean(brandIcon) || hasSenderImage,
+          hasTitle: styleText.title !== undefined,
+          isPlainLink,
+        })
+      : undefined;
+    if (styleKind === 'largeImage' && (!hasSenderImage || brandIcon)) {
+      styleKind = 'iconStrip';
+    }
+
     const className = classNames(
       'module-message__link-preview',
       `module-message__link-preview--${direction}`,
@@ -2045,17 +2085,36 @@ export class Message extends PureComponent<Props, State> {
           firstPartyCard,
           isClickable ? openFromKeyboard : undefined
         )
-      : snapshotContents;
+      : styleKind && styleText
+        ? this.#renderStyledLinkCard({
+            first,
+            kind: styleKind,
+            text: styleText,
+            brandIcon,
+            officialBadge: display.officialBadge,
+            withContentAbove,
+          })
+        : snapshotContents;
 
     // The link text is not shown, so the card says where it goes.
     const tooltip = isLinkCardOnly ? first.url : undefined;
 
     // The frame carries the card's tint, when there is one (card-visual §3.3).
+    // A styled card is tinted only as an icon strip (DESIGN.md §9), a strip with no layout as an
+    // icon one; the others are neutral grey.
+    const styledTint =
+      styleKind !== undefined &&
+      isLinkCardStyleTinted(styleKind) &&
+      shouldTintLinkCard({
+        card: first.card,
+        layout: first.layout ?? 'icon',
+        isMessageRequest: !isMessageRequestAccepted,
+      });
     const frameProps = {
-      enabled: shouldTint,
+      enabled: styleKind !== undefined ? styledTint : shouldTint,
       getLinkCardTint,
       imageUrl: brandIcon ? brandIcon.url : first.image?.url,
-      layout: first.layout,
+      layout: styleKind !== undefined ? (first.layout ?? 'icon') : first.layout,
       theme,
     };
 
@@ -2091,7 +2150,7 @@ export class Message extends PureComponent<Props, State> {
         tabIndex={0}
         // Tellomi (card-visual §3.6): "Link, <title>, <domain>".
         aria-label={getLinkCardAriaLabel(i18n, {
-          title,
+          title: styleText ? (styleText.title ?? styleText.domain) : title,
           domain: first.card?.domain ?? first.domain,
         })}
         className={className}
@@ -2109,6 +2168,154 @@ export class Message extends PureComponent<Props, State> {
       >
         {contents}
       </LinkPreviewTintFrame>
+    );
+  }
+
+  // Tellomi (DESIGN.md §9): a third-party card in the one style of all platforms. No sub line and
+  // no date; the compass only on a card with nothing but its domain.
+  #renderStyledLinkCard({
+    first,
+    kind,
+    text,
+    brandIcon,
+    officialBadge,
+    withContentAbove,
+  }: Readonly<{
+    first: LinkPreviewForUIType;
+    kind: LinkCardStyleKind;
+    text: LinkCardStyleText;
+    brandIcon: LinkPreviewForUIType['cardIcon'];
+    officialBadge: boolean;
+    withContentAbove: boolean;
+  }>): JSX.Element {
+    const {
+      cancelAttachmentDownload,
+      direction,
+      i18n,
+      id,
+      kickOffAttachmentDownload,
+      shouldCollapseAbove,
+      showMediaNoLongerAvailableToast,
+      theme,
+    } = this.props;
+    const lookalike = Boolean(first.card?.lookalike);
+    const lines =
+      text.title !== undefined ? (
+        <div className="module-message__link-card__text">
+          <div
+            className={classNames('module-message__link-card__title', {
+              'module-message__link-preview__title--lookalike': lookalike,
+            })}
+          >
+            {text.title}
+            {officialBadge ? (
+              <span className="module-message__link-card__badge">
+                {i18n('icu:TellomiLinkCard__official_badge')}
+              </span>
+            ) : null}
+          </div>
+          <div className="module-message__link-card__domain">{text.domain}</div>
+        </div>
+      ) : (
+        <div className="module-message__link-card__text">
+          <div
+            className={classNames('module-message__link-card__domain-only', {
+              'module-message__link-preview__title--lookalike': lookalike,
+            })}
+          >
+            {text.domain}
+          </div>
+        </div>
+      );
+
+    if (kind === 'largeImage' && first.image) {
+      return (
+        <>
+          <ImageGrid
+            attachments={[first.image]}
+            aspectRatioLimits={LARGE_IMAGE_ASPECT_RATIO_LIMITS}
+            withContentAbove={withContentAbove}
+            direction={direction}
+            shouldCollapseAbove={shouldCollapseAbove}
+            withContentBelow
+            onError={this.handleImageError}
+            i18n={i18n}
+            theme={theme}
+            showVisualAttachment={() => {
+              openLinkInWebBrowser(first.url);
+            }}
+            startDownload={() => {
+              kickOffAttachmentDownload({ messageId: id });
+            }}
+            cancelDownload={() => {
+              cancelAttachmentDownload({ messageId: id });
+            }}
+            showMediaNoLongerAvailableToast={showMediaNoLongerAvailableToast}
+          />
+          <div
+            dir="auto"
+            className="module-message__link-card module-message__link-card--no-trailing"
+          >
+            {lines}
+          </div>
+        </>
+      );
+    }
+
+    let trailing: JSX.Element | undefined;
+    if (kind === 'iconStrip' && brandIcon) {
+      trailing = (
+        <div className="module-message__link-card__icon">
+          <img
+            alt=""
+            draggable={false}
+            height={LINK_CARD_STYLE.iconSize}
+            src={brandIcon.url}
+            width={LINK_CARD_STYLE.iconSize}
+          />
+        </div>
+      );
+    } else if (kind === 'iconStrip' && first.image) {
+      trailing = (
+        <div className="module-message__link-card__icon">
+          <Image
+            noBorder
+            noBackground
+            alt={i18n('icu:previewThumbnail', { domain: text.domain })}
+            height={LINK_CARD_STYLE.iconSize}
+            width={LINK_CARD_STYLE.iconSize}
+            url={first.image.url}
+            attachment={first.image}
+            blurHash={first.image.blurHash}
+            onError={this.handleImageError}
+            i18n={i18n}
+            showMediaNoLongerAvailableToast={showMediaNoLongerAvailableToast}
+            showVisualAttachment={() => {
+              openLinkInWebBrowser(first.url);
+            }}
+            startDownload={() => {
+              kickOffAttachmentDownload({ messageId: id });
+            }}
+            cancelDownload={() => {
+              cancelAttachmentDownload({ messageId: id });
+            }}
+          />
+        </div>
+      );
+    } else if (linkCardShowsCompass(kind)) {
+      trailing = <LinkCardCompass />;
+    }
+
+    return (
+      <div
+        dir="auto"
+        className={classNames('module-message__link-card', {
+          'module-message__link-card--no-trailing': trailing === undefined,
+        })}
+      >
+        {lines}
+        {trailing}
+      </div>
     );
   }
 
