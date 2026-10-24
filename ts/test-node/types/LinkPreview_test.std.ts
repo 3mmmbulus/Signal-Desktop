@@ -135,6 +135,22 @@ describe('Link previews', () => {
         'https://zh.wikipedia.org/wiki/中国'
       );
       assert.strictEqual(
+        cut('https://zh.wikipedia.org/wiki/中国…'),
+        'https://zh.wikipedia.org/wiki/中国'
+      );
+      assert.strictEqual(
+        cut('https://zh.wikipedia.org/wiki/中国—后面'),
+        'https://zh.wikipedia.org/wiki/中国'
+      );
+      assert.strictEqual(
+        cut('https://www.baidu.com/s?wd=天气－'),
+        'https://www.baidu.com/s?wd=天气'
+      );
+      assert.strictEqual(
+        cut('https://signal.org/a/中文．'),
+        'https://signal.org/a/中文'
+      );
+      assert.strictEqual(
         cut('https://www.baidu.com/s?wd=天气！'),
         'https://www.baidu.com/s?wd=天气'
       );
@@ -210,7 +226,6 @@ describe('Link previews', () => {
         'https://signal.org',
         'https://signal.org/abc',
         'https://zh.wikipedia.org/wiki/中国',
-        'https://zh.wikipedia.org/wiki/中国，很好',
         'https://signal.org/%E4%B8%AD',
         'signal.org',
       ]) {
@@ -246,6 +261,36 @@ describe('Link previews', () => {
         link.slice(0, getLinkifiableLength(link)),
         'https://zh.wikipedia.org/wiki/中国'
       );
+    });
+
+    it('stops the clickable link at Chinese punctuation, hidden character or not', () => {
+      for (const [link, expected] of [
+        [
+          'https://zh.wikipedia.org/wiki/中国，很好',
+          'https://zh.wikipedia.org/wiki/中国',
+        ],
+        [
+          'https://zh.wikipedia.org/wiki/中国…后面',
+          'https://zh.wikipedia.org/wiki/中国',
+        ],
+        [
+          'https://zh.wikipedia.org/wiki/中国—后面',
+          'https://zh.wikipedia.org/wiki/中国',
+        ],
+        [
+          'https://www.baidu.com/s?wd=天气－后面',
+          'https://www.baidu.com/s?wd=天气',
+        ],
+        ['https://signal.org/a/中文．后面', 'https://signal.org/a/中文'],
+        ['https://signal.org/abc.…', 'https://signal.org/abc'],
+        ['https://signal.org/a-b', 'https://signal.org/a-b'],
+      ]) {
+        assert.strictEqual(
+          link?.slice(0, getLinkifiableLength(link ?? '')),
+          expected,
+          JSON.stringify(link)
+        );
+      }
     });
   });
 
