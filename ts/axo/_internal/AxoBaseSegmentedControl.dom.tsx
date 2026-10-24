@@ -83,7 +83,8 @@ export namespace ExperimentalAxoBaseSegmentedControl {
       baseRootStyles,
       'bg-primary',
       // Tellomi (WCAG 1.4.11): in high contrast the track has an edge, 3:1 against the page.
-      'contrast-more:border contrast-more:border-secondary'
+      // An inset outline, not a border: it takes no space, so the track stays 28px tall.
+      'contrast-more:outline contrast-more:-outline-offset-1 contrast-more:outline-secondary'
     ),
     'no-track': baseRootStyles,
   });
@@ -104,7 +105,8 @@ export namespace ExperimentalAxoBaseSegmentedControl {
       baseIndicatorStyles,
       'bg-secondary text-primary',
       // Tellomi (WCAG 1.4.11): without a track the selected pill needs its own edge in high contrast.
-      'contrast-more:border contrast-more:border-secondary'
+      // An inset outline, as on the track: no change in size.
+      'contrast-more:outline contrast-more:-outline-offset-1 contrast-more:outline-secondary'
     ),
   });
 
