@@ -135,6 +135,22 @@ describe('Link previews', () => {
         'https://zh.wikipedia.org/wiki/中国'
       );
       assert.strictEqual(
+        cut('https://zh.wikipedia.org/wiki/中国…'),
+        'https://zh.wikipedia.org/wiki/中国'
+      );
+      assert.strictEqual(
+        cut('https://zh.wikipedia.org/wiki/中国—后面'),
+        'https://zh.wikipedia.org/wiki/中国'
+      );
+      assert.strictEqual(
+        cut('https://www.baidu.com/s?wd=天气－'),
+        'https://www.baidu.com/s?wd=天气'
+      );
+      assert.strictEqual(
+        cut('https://signal.org/a/中文．'),
+        'https://signal.org/a/中文'
+      );
+      assert.strictEqual(
         cut('https://www.baidu.com/s?wd=天气！'),
         'https://www.baidu.com/s?wd=天气'
       );

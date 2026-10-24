@@ -82,7 +82,7 @@ export function shouldPreviewHref(href: string): boolean {
 // U+2028/2029, U+202F, U+3000) and Chinese sentence punctuation, which in Chinese text follows a
 // link with no space. The same table is in the iOS and Android clients.
 const IRI_TERMINATOR =
-  /[\s\u00a0\u2000-\u200a\u2028\u2029\u202f\u3000，。！？；：、）」』】》〉”’]/u;
+  /[\s\u00a0\u2000-\u200a\u2028\u2029\u202f\u3000，。！？；：、）」』】》〉”’…—－．]/u;
 // Characters a reader cannot see or that change how the text around them is shown: never part of
 // a previewed link.
 const IRI_HIDDEN = /[\p{Cc}\p{Cf}\p{Co}\p{Cs}\p{Cn}\p{Zl}\p{Zp}]/u;
