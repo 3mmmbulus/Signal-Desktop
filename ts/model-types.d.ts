@@ -473,6 +473,8 @@ export type ConversationAttributesType = {
   storageUnknownFields?: string;
   unreadCount?: number;
   unreadMentionsCount?: number;
+  // Tellomi (desktop audit 6.2): local-only, unread reactions on my messages
+  unreadReactionsCount?: number;
   version: number;
 
   // Private core info

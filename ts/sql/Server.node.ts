@@ -489,6 +489,8 @@ export const DataReader: ServerReadableInterface = {
   getAllStories,
   getNewerMessagesByConversation,
   getOldestUnreadMentionOfMeForConversation,
+  getTotalUnreadReactionsToMeForConversation,
+  getOldestMessageWithUnreadReactionToMe,
   getTotalUnreadForConversation,
   getTotalUnreadMentionsOfMeForConversation,
   getMessageMetricsForConversation,
@@ -674,6 +676,7 @@ export const DataWriter: ServerWritableInterface = {
   removeMessage,
   removeMessages,
   markReactionAsRead,
+  getUnreadReactionsForMessagesAndMarkRead,
   markPollVoteAsRead,
   addReaction,
   removeReactionFromConversation,
@@ -3807,6 +3810,34 @@ function getUnreadReactionsAndMarkRead(
     });
 }
 
+// Tellomi (desktop audit 6.2 r2): Telegram-style per-message reaction read.
+// Only reactions on the given (actually on-screen) messages are marked read.
+function getUnreadReactionsForMessagesAndMarkRead(
+  db: WritableDB,
+  {
+    conversationId,
+    messageIds,
+  }: {
+    conversationId: string;
+    messageIds: ReadonlyArray<string>;
+  }
+): Array<ReactionResultType> {
+  if (!messageIds.length) {
+    return [];
+  }
+  const [query, params] = sql`
+    UPDATE reactions
+    INDEXED BY reactions_unread
+    SET unread = 0
+    WHERE
+      conversationId = ${conversationId} AND
+      unread >= 1 AND
+      messageId IN (${sqlJoin(messageIds)})
+    RETURNING targetAuthorAci, targetTimestamp, messageId;
+  `;
+  return db.prepare(query).all<ReactionResultType>(params);
+}
+
 function markReactionAsRead(
   db: WritableDB,
   targetAuthorServiceId: ServiceIdString,
@@ -4568,6 +4599,61 @@ function getOldestUnreadMentionOfMeForConversation(
       `;
 
   return db.prepare(query).get(params);
+}
+
+// Tellomi (desktop audit 6.2): unread reactions on my own messages, for the
+// "jump to unread reaction" button. Read-only; uses existing columns only.
+function getTotalUnreadReactionsToMeForConversation(
+  db: ReadableDB,
+  conversationId: string,
+  ourAci: AciString
+): number {
+  // Exclude reactions I made on another linked device (fromId = me). Those
+  // sync in as Unread (Reactions.preload.ts) but must not inflate the button.
+  const [query, params] = sql`
+    SELECT count(1)
+    FROM reactions INDEXED BY reactions_unread
+    WHERE
+      reactions.conversationId = ${conversationId} AND
+      reactions.unread >= 1 AND
+      reactions.targetAuthorAci = ${ourAci} AND
+      reactions.fromId IS NOT (
+        SELECT id FROM conversations WHERE serviceId = ${ourAci} LIMIT 1
+      ) AND
+      EXISTS (
+        SELECT 1 FROM messages
+        WHERE messages.id = reactions.messageId
+          AND messages.isStory IS 0
+          AND messages.storyId IS NULL
+      )
+  `;
+  const row = db.prepare(query, { pluck: true }).get<number>(params);
+  return row ?? 0;
+}
+
+function getOldestMessageWithUnreadReactionToMe(
+  db: ReadableDB,
+  conversationId: string,
+  ourAci: AciString
+): MessageMetricsType | undefined {
+  // Same fromId≠me exclusion as getTotalUnreadReactionsToMeForConversation.
+  const [query, params] = sql`
+    SELECT messages.received_at, messages.sent_at, messages.id
+    FROM reactions INDEXED BY reactions_unread
+    INNER JOIN messages ON messages.id = reactions.messageId
+    WHERE
+      reactions.conversationId = ${conversationId} AND
+      reactions.unread >= 1 AND
+      reactions.targetAuthorAci = ${ourAci} AND
+      reactions.fromId IS NOT (
+        SELECT id FROM conversations WHERE serviceId = ${ourAci} LIMIT 1
+      ) AND
+      messages.isStory IS 0 AND
+      messages.storyId IS NULL
+    ORDER BY messages.received_at ASC, messages.sent_at ASC
+    LIMIT 1;
+  `;
+  return db.prepare(query).get<MessageMetricsType>(params);
 }
 
 function getTotalUnreadForConversation(

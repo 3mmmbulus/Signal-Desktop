@@ -265,6 +265,7 @@ export function getConversation(model: ConversationModel): ConversationType {
       : getTitle(attributes),
     unreadCount: attributes.unreadCount || 0,
     unreadMentionsCount: attributes.unreadMentionsCount || 0,
+    unreadReactionsCount: attributes.unreadReactionsCount || 0,
     ...(isDirectConversation(attributes)
       ? {
           type: 'direct' as const,

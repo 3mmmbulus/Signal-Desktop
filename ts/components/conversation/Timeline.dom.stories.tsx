@@ -277,6 +277,10 @@ const actions = () => ({
   toggleSelectMessage: action('toggleSelectMessage'),
   targetMessage: action('targetMessage'),
   scrollToOldestUnreadMention: action('scrollToOldestUnreadMention'),
+  scrollToOldestUnreadReaction: action('scrollToOldestUnreadReaction'),
+  markReactionsReadForVisibleMessages: action(
+    'markReactionsReadForVisibleMessages'
+  ),
   clearTargetedMessage: action('clearTargetedMessage'),
 
   endPoll: action('endPoll'),

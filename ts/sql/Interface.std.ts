@@ -956,6 +956,14 @@ type ReadableInterface = {
       includeStoryReplies: boolean;
     }
   ) => MessageMetricsType | undefined;
+  getTotalUnreadReactionsToMeForConversation: (
+    conversationId: string,
+    ourAci: AciString
+  ) => number;
+  getOldestMessageWithUnreadReactionToMe: (
+    conversationId: string,
+    ourAci: AciString
+  ) => MessageMetricsType | undefined;
 
   getReactionByTimestamp: (
     fromId: string,
@@ -1289,6 +1297,10 @@ type WritableInterface = {
     conversationId: string;
     readMessageReceivedAt: number;
   }) => Array<PollVoteReadResultType>;
+  getUnreadReactionsForMessagesAndMarkRead: (options: {
+    conversationId: string;
+    messageIds: ReadonlyArray<string>;
+  }) => Array<ReactionResultType>;
   markReactionAsRead: (
     targetAuthorServiceId: ServiceIdString,
     targetTimestamp: number

@@ -18,6 +18,7 @@ import { getOwn } from '../../util/getOwn.std.ts';
 import { hasDraft } from '../../util/hasDraft.std.ts';
 import { assertDev, strictAssert } from '../../util/assert.std.ts';
 import { drop } from '../../util/drop.std.ts';
+import { markReactionsReadForMessages } from '../../util/markReactionsReadForMessages.preload.ts';
 import {
   deleteAvatar,
   writeNewAvatarData,
@@ -446,6 +447,7 @@ export type ConversationType = ReadonlyDeep<
     searchableTitle?: string;
     unreadCount?: number;
     unreadMentionsCount?: number;
+    unreadReactionsCount?: number;
     isSelected?: boolean;
     isFetchingUUID?: boolean;
     typingContactIdTimestamps?: Record<string, number>;
@@ -1258,6 +1260,8 @@ export const actions = {
   saveAvatarToDisk,
   scrollToMessage,
   scrollToOldestUnreadMention,
+  scrollToOldestUnreadReaction,
+  markReactionsReadForVisibleMessages,
   sendPollVote,
   setPendingRequestedAvatarDownload,
   startAvatarDownload,
@@ -1531,13 +1535,19 @@ function markConversationRead(
     if (lastMessage == null) {
       return;
     }
-    dispatch(markMessageRead(conversationId, lastMessage.id));
+    // Explicit "mark chat read": also clears all reactions (Tellomi 6.2 r2)
+    dispatch(
+      markMessageRead(conversationId, lastMessage.id, {
+        includeReactions: true,
+      })
+    );
   };
 }
 
 function markMessageRead(
   conversationId: string,
-  messageId: string
+  messageId: string,
+  { includeReactions = false }: { includeReactions?: boolean } = {}
 ): ThunkAction<void, RootStateType, unknown, NoopActionType> {
   return async (dispatch, getState) => {
     const conversation = window.ConversationController.get(conversationId);
@@ -1561,6 +1571,7 @@ function markMessageRead(
 
     await conversation.markRead(message.attributes, {
       sendReadReceipts: true,
+      includeReactions,
     });
 
     if (message.get('type') === 'call-history') {
@@ -4450,6 +4461,55 @@ function scrollToOldestUnreadMention(
     }
 
     dispatch(scrollToMessage(conversationId, oldestUnreadMention.id));
+  };
+}
+
+// Tellomi (desktop audit 6.2): jump to the oldest of my messages that has an
+// unread reaction. Reading it is left to the normal mark-read-on-view flow.
+function scrollToOldestUnreadReaction(
+  conversationId: string
+): ThunkAction<void, RootStateType, unknown, NoopActionType> {
+  return async dispatch => {
+    const ourAci = itemStorage.user.getAci();
+    if (!ourAci) {
+      log.warn('scrollToOldestUnreadReaction: no ourAci');
+      return;
+    }
+
+    const oldest = await DataReader.getOldestMessageWithUnreadReactionToMe(
+      conversationId,
+      ourAci
+    );
+    if (!oldest) {
+      log.warn(
+        `No unread reaction found for conversation: [${conversationId}]`
+      );
+      return;
+    }
+
+    dispatch(scrollToMessage(conversationId, oldest.id));
+  };
+}
+
+// Tellomi (desktop audit 6.2 r2): reactions count as read only once the message
+// they are on is actually on screen (Telegram behaviour). Does not touch message
+// read status or read receipts.
+function markReactionsReadForVisibleMessages(
+  conversationId: string,
+  messageIds: ReadonlyArray<string>
+): ThunkAction<void, RootStateType, unknown, NoopActionType> {
+  return async (_dispatch, getState) => {
+    if (!messageIds.length) {
+      return;
+    }
+    if (!window.SignalContext.activeWindowService.isActive()) {
+      return;
+    }
+    const activeCall = getActiveCallState(getState());
+    if (activeCall && !activeCall.pip) {
+      return;
+    }
+    await markReactionsReadForMessages(conversationId, messageIds);
   };
 }
 

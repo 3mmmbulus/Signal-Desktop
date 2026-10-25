@@ -97,6 +97,8 @@ export const SmartTimeline = memo(function SmartTimeline({
     loadOlderMessages,
     markMessageRead,
     scrollToOldestUnreadMention,
+    scrollToOldestUnreadReaction,
+    markReactionsReadForVisibleMessages,
     setCenterMessage,
     setIsNearBottom,
     targetMessage,
@@ -119,6 +121,7 @@ export const SmartTimeline = memo(function SmartTimeline({
     typingContactIdTimestamps = {},
     unreadCount,
     unreadMentionsCount,
+    unreadReactionsCount,
     type: conversationType,
   } = conversation ?? {};
   const {
@@ -249,6 +252,8 @@ export const SmartTimeline = memo(function SmartTimeline({
       scrollToIndex={updatedScrollToIndex}
       scrollToIndexCounter={scrollToIndexCounter}
       scrollToOldestUnreadMention={scrollToOldestUnreadMention}
+      scrollToOldestUnreadReaction={scrollToOldestUnreadReaction}
+      markReactionsReadForVisibleMessages={markReactionsReadForVisibleMessages}
       setCenterMessage={setCenterMessage}
       setIsNearBottom={setIsNearBottom}
       targetedMessageId={targetedMessageId}
@@ -257,6 +262,7 @@ export const SmartTimeline = memo(function SmartTimeline({
       totalUnseen={totalUnseen}
       unreadCount={unreadCount}
       unreadMentionsCount={unreadMentionsCount}
+      unreadReactionsCount={unreadReactionsCount}
     />
   );
 });

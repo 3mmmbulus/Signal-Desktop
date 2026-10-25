@@ -699,6 +699,10 @@
     "messageformat": "New mentions below",
     "description": "Alt text for button to take user down to next mention of them further down the message list (currently out of screen)"
   },
+  "icu:ScrollDownButton--unreadReactions": {
+    "messageformat": "New reactions to your messages",
+    "description": "Tellomi: Alt text for the timeline button that jumps to the oldest of your messages with an unread reaction"
+  },
   "icu:unreadMessages": {
     "messageformat": "{count, plural, one {# Unread Message} other {# Unread Messages}}",
     "description": "Text for unread message separator, with count"
