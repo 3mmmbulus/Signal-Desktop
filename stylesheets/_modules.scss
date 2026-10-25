@@ -1582,17 +1582,15 @@ $link-card-icon-gap: 6px;
 
 .module-message__metadata__status-icon--sent {
   @include mixins.color-svg(
-    '../images/icons/v3/message_status/messagestatus-sent.svg',
+    // Tellomi (M7 §3.1, #1186): Tellomi's own tick, no circle
+    '../images/icons/v3/message_status/tellomi-check.svg',
     currentColor
   );
 }
+// Tellomi (M7): delivered is drawn as one tick (tellomiDisplayStatus); kept for safety
 .module-message__metadata__status-icon--delivered {
-  // We reduce the margin size to keep the overall width the same
-  margin-inline-end: 0px;
-  width: 18px;
-
   @include mixins.color-svg(
-    '../images/icons/v3/message_status/messagestatus-delivered.svg',
+    '../images/icons/v3/message_status/tellomi-check.svg',
     currentColor
   );
 }
@@ -1603,9 +1601,58 @@ $link-card-icon-gap: 6px;
   width: 18px;
 
   @include mixins.color-svg(
-    '../images/icons/v3/message_status/messagestatus-read.svg',
+    '../images/icons/v3/message_status/tellomi-double-check.svg',
     currentColor
   );
+}
+
+// Tellomi (M7 §3.1, #1186): read in the accent colour where the bubble is not coloured itself
+// (on a coloured outgoing bubble the accent would vanish, so there it keeps the time's colour).
+.module-message__metadata--outline-only-bubble,
+.module-message__metadata--sticker {
+  .module-message__metadata__status-icon--read,
+  .module-message__metadata__status-icon--viewed {
+    color: light-dark(
+      variables.$color-ultramarine,
+      variables.$color-ultramarine-light
+    );
+  }
+}
+
+// Tellomi (M7 §3.1, #1186): one tick fades in (150 ms); on read the second tick grows from the
+// first (220 ms). Only for a change seen live (useTellomiStatusAnimation).
+@keyframes tellomi-check-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes tellomi-check-grow {
+  from {
+    clip-path: inset(0 38% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@mixin tellomi-status-animations {
+  &--tellomi-animate-sent {
+    animation: tellomi-check-fade-in 150ms ease-out;
+  }
+  &--tellomi-animate-read {
+    animation: tellomi-check-grow 220ms ease-out;
+  }
+  @media (prefers-reduced-motion) {
+    &--tellomi-animate-sent,
+    &--tellomi-animate-read {
+      animation: none;
+    }
+  }
+}
+.module-message__metadata__status-icon {
+  @include tellomi-status-animations;
 }
 
 // When status indicators are overlaid on top of an image, they use different colors
@@ -5439,30 +5486,29 @@ button.module-calling-participants-list__contact {
                 }
               }
 
-              &--sent {
-                @include normal-status-icon(
-                  '../images/icons/v3/message_status/messagestatus-sent.svg'
-                );
-              }
-
+              // Tellomi (M7 §3.1, #1186): Tellomi's own ticks; read in the accent colour
+              &--sent,
               &--delivered {
                 @include normal-status-icon(
-                  '../images/icons/v3/message_status/messagestatus-delivered.svg'
+                  '../images/icons/v3/message_status/tellomi-check.svg'
                 );
-                & {
-                  width: 18px;
-                }
               }
 
               &--read,
               &--viewed {
-                @include normal-status-icon(
-                  '../images/icons/v3/message_status/messagestatus-read.svg'
+                @include mixins.color-svg(
+                  '../images/icons/v3/message_status/tellomi-double-check.svg',
+                  light-dark(
+                    variables.$color-ultramarine,
+                    variables.$color-ultramarine-light
+                  )
                 );
                 & {
                   width: 18px;
                 }
               }
+
+              @include tellomi-status-animations;
 
               &--error,
               &--partial-sent {

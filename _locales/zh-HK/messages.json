@@ -1511,6 +1511,9 @@
   "icu:TellomiPinnedPanel__OnlyYou": {
     "messageformat": "僅自己可見"
   },
+  "icu:TellomiChecksHint": {
+    "messageformat": "一個勾：已發出；兩個勾：對方已讀"
+  },
   "icu:TellomiPinBarHidden": {
     "messageformat": "釘選訊息已隱藏，有新的釘選時會再顯示"
   },

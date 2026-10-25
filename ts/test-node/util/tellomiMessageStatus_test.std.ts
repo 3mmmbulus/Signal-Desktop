@@ -11,6 +11,8 @@ import {
   tellomiNextReadReceiptHistory,
   tellomiSendingIndicatorDelay,
   tellomiSendingIndicatorRevealTimestamp,
+  tellomiShouldShowChecksHint,
+  tellomiStatusAnimation,
   tellomiWereReadReceiptsEnabledAt,
 } from '../../util/tellomiMessageStatus.std.ts';
 import type { TellomiReadReceiptChange } from '../../util/tellomiMessageStatus.std.ts';
@@ -157,6 +159,50 @@ describe('tellomiMessageStatus (M7)', () => {
       assert.isFalse(tellomiWereReadReceiptsEnabledAt(history, true, 100));
       assert.isFalse(
         tellomiWereReadReceiptsEnabledAt(history, true, undefined)
+      );
+    });
+  });
+
+  describe('tellomiStatusAnimation (#1186)', () => {
+    it('fades one tick in when the server takes the message', () => {
+      assert.strictEqual(tellomiStatusAnimation('sending', 'sent'), 'sent');
+      assert.strictEqual(tellomiStatusAnimation('paused', 'sent'), 'sent');
+    });
+    it('grows the second tick when it is read', () => {
+      assert.strictEqual(tellomiStatusAnimation('sent', 'read'), 'read');
+      assert.strictEqual(tellomiStatusAnimation('sent', 'viewed'), 'read');
+      assert.strictEqual(tellomiStatusAnimation('sending', 'read'), 'read');
+      assert.strictEqual(tellomiStatusAnimation('delivered', 'read'), 'read');
+    });
+    it('does not animate a first draw, no change, going back or failing', () => {
+      assert.isUndefined(tellomiStatusAnimation(undefined, 'sent'));
+      assert.isUndefined(tellomiStatusAnimation('read', 'read'));
+      assert.isUndefined(tellomiStatusAnimation('read', 'sent'));
+      assert.isUndefined(tellomiStatusAnimation('sending', 'error'));
+      assert.isUndefined(tellomiStatusAnimation('sent', undefined));
+    });
+  });
+
+  describe('tellomiShouldShowChecksHint (#1186)', () => {
+    const base = {
+      alreadyShown: false,
+      isNoteToSelf: false,
+      isEdit: false,
+      isStoryReply: false,
+    };
+    it('shows once after the first ordinary message', () => {
+      assert.isTrue(tellomiShouldShowChecksHint(base));
+      assert.isFalse(
+        tellomiShouldShowChecksHint({ ...base, alreadyShown: true })
+      );
+    });
+    it('skips Note to Self, edits and story replies', () => {
+      assert.isFalse(
+        tellomiShouldShowChecksHint({ ...base, isNoteToSelf: true })
+      );
+      assert.isFalse(tellomiShouldShowChecksHint({ ...base, isEdit: true }));
+      assert.isFalse(
+        tellomiShouldShowChecksHint({ ...base, isStoryReply: true })
       );
     });
   });

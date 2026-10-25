@@ -1511,6 +1511,9 @@
   "icu:TellomiPinnedPanel__OnlyYou": {
     "messageformat": "淨係自己睇到"
   },
+  "icu:TellomiChecksHint": {
+    "messageformat": "一個剔：已發出；兩個剔：對方已讀"
+  },
   "icu:TellomiPinBarHidden": {
     "messageformat": "置頂訊息已收埋，有新嘅置頂時會再顯示"
   },
