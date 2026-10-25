@@ -91,6 +91,8 @@ export enum ToastType {
   TapToViewExpiredIncoming = 'TapToViewExpiredIncoming',
   TapToViewExpiredOutgoing = 'TapToViewExpiredOutgoing',
   // Tellomi（tellomi/tellomi#1414）：「退出登录」没连上服务器 / 服务器没删成功
+  // Tellomi (M7 §3.1, tellomi/tellomi#1186): one-time tip after the first message sent, what the ticks mean
+  TellomiChecksHint = 'TellomiChecksHint',
   TellomiLogoutNeedsNetwork = 'TellomiLogoutNeedsNetwork',
   // Tellomi (pinned-messages.md 3.5 / 3.6, ADR-0081 P3): pins taken back, with a 5 second "Undo"; sending them failed
   TellomiPinUnpinned = 'TellomiPinUnpinned',
@@ -258,6 +260,7 @@ export type AnyToast =
   | { toastType: ToastType.StoryVideoUnsupported }
   | { toastType: ToastType.TapToViewExpiredIncoming }
   | { toastType: ToastType.TapToViewExpiredOutgoing }
+  | { toastType: ToastType.TellomiChecksHint }
   | { toastType: ToastType.TellomiLogoutNeedsNetwork }
   | {
       toastType: ToastType.TellomiPinUnpinned;

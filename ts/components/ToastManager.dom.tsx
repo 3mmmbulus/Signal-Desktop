@@ -1002,6 +1002,15 @@ function renderToast({
     );
   }
 
+  if (toastType === ToastType.TellomiChecksHint) {
+    // Read once, so it stays longer than a plain toast
+    return (
+      <Toast onClose={hideToast} timeout={8 * SECOND}>
+        {i18n('icu:TellomiChecksHint')}
+      </Toast>
+    );
+  }
+
   if (toastType === ToastType.TellomiLogoutNeedsNetwork) {
     return (
       <Toast onClose={hideToast}>

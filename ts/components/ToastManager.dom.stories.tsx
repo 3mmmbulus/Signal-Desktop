@@ -260,6 +260,8 @@ function getToast(toastType: ToastType): AnyToast {
       return { toastType: ToastType.TapToViewExpiredOutgoing };
     case ToastType.TellomiLogoutNeedsNetwork:
       return { toastType: ToastType.TellomiLogoutNeedsNetwork };
+    case ToastType.TellomiChecksHint:
+      return { toastType: ToastType.TellomiChecksHint };
     case ToastType.TellomiPinUnpinned:
       return {
         toastType: ToastType.TellomiPinUnpinned,

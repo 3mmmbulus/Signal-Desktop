@@ -22,6 +22,7 @@ import type { BadgeType } from '../../badges/types.std.ts';
 import { isSignalConversation } from '../../util/isSignalConversation.dom.ts';
 import { RenderLocation } from '../conversation/MessageTextRenderer.dom.tsx';
 import { useTellomiSendingIndicatorHidden } from '../../hooks/useTellomiSendingIndicatorHidden.std.ts';
+import { useTellomiStatusAnimation } from '../../hooks/useTellomiStatusAnimation.std.ts';
 
 const EMPTY_OBJECT = Object.freeze(Object.create(null));
 const MESSAGE_STATUS_ICON_CLASS_NAME = `${MESSAGE_TEXT_CLASS_NAME}__status-icon`;
@@ -146,6 +147,12 @@ export const ConversationListItem: FunctionComponent<Props> = memo(
       isTextOnly: tellomiSendingSince != null,
       sentAt: tellomiSendingSince,
     });
+    // Tellomi (M7 §3.1, #1186): same tick animations as the bubble
+    const tellomiStatusAnimation = useTellomiStatusAnimation(
+      lastMessage && !lastMessage.deletedForEveryone
+        ? lastMessage.status
+        : undefined
+    );
 
     let headerDate: number | undefined = lastUpdated;
     let messageText: ReactNode = null;
@@ -223,7 +230,9 @@ export const ConversationListItem: FunctionComponent<Props> = memo(
           <div
             className={classNames(
               MESSAGE_STATUS_ICON_CLASS_NAME,
-              `${MESSAGE_STATUS_ICON_CLASS_NAME}--${lastMessage.status}`
+              `${MESSAGE_STATUS_ICON_CLASS_NAME}--${lastMessage.status}`,
+              tellomiStatusAnimation &&
+                `${MESSAGE_STATUS_ICON_CLASS_NAME}--tellomi-animate-${tellomiStatusAnimation}`
             )}
             style={
               isSendingIndicatorHidden ? { visibility: 'hidden' } : undefined

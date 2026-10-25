@@ -135,3 +135,53 @@ export function tellomiWereReadReceiptsEnabledAt(
   }
   return oldest ? !oldest.enabled : currentlyEnabled;
 }
+
+/**
+ * Tellomi (M7 §3.1, tellomi/tellomi#1186): which status change animates while a bubble or a chat
+ * list row stays on screen. One tick fades in when the server takes the message; the second
+ * tick grows when it is read. Nothing animates when a message is first drawn (opening a chat,
+ * scrolling back), so only a change seen live moves.
+ */
+export type TellomiStatusAnimation = 'sent' | 'read';
+
+export function tellomiStatusAnimation(
+  previous: MessageStatusType | undefined,
+  next: MessageStatusType | undefined
+): TellomiStatusAnimation | undefined {
+  if (previous === next || previous == null || next == null) {
+    return undefined;
+  }
+  const wasPending = previous === 'sending' || previous === 'paused';
+  if (next === 'sent' && wasPending) {
+    return 'sent';
+  }
+  if (
+    (next === 'read' || next === 'viewed') &&
+    (wasPending ||
+      previous === 'sent' ||
+      previous === 'delivered' ||
+      previous === 'partial-sent')
+  ) {
+    return 'read';
+  }
+  return undefined;
+}
+
+/**
+ * Tellomi (M7 §3.1, tellomi/tellomi#1186): the one-time tip after the first message this device
+ * sends ("one tick: sent; two ticks: read"). Not for Note to Self, edits or story replies, where
+ * the ticks do not mean the same.
+ */
+export function tellomiShouldShowChecksHint({
+  alreadyShown,
+  isNoteToSelf,
+  isEdit,
+  isStoryReply,
+}: Readonly<{
+  alreadyShown: boolean;
+  isNoteToSelf: boolean;
+  isEdit: boolean;
+  isStoryReply: boolean;
+}>): boolean {
+  return !alreadyShown && !isNoteToSelf && !isEdit && !isStoryReply;
+}

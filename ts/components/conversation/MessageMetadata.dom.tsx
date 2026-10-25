@@ -22,6 +22,7 @@ import { AxoSymbol } from '../../axo/AxoSymbol.dom.tsx';
 import { tw } from '../../axo/tw.dom.tsx';
 import { AxoConfirmDialog } from '../../axo/AxoConfirmDialog.dom.tsx';
 import { useTellomiSendingIndicatorHidden } from '../../hooks/useTellomiSendingIndicatorHidden.std.ts';
+import { useTellomiStatusAnimation } from '../../hooks/useTellomiStatusAnimation.std.ts';
 
 type PropsType = {
   canRetryDeleteForEveryone: boolean;
@@ -96,6 +97,8 @@ export const MessageMetadata = forwardRef<HTMLDivElement, Readonly<PropsType>>(
       isTextOnly: tellomiIsTextOnly && !deletedForEveryone,
       sentAt: timestamp,
     });
+    // Tellomi (M7 §3.1, #1186): one tick fades in, the second grows, only for a change seen live
+    const tellomiStatusAnimation = useTellomiStatusAnimation(status);
     const withImageNoCaption = !isSticker && !hasText && isShowingImage;
     const metadataDirection = isSticker ? undefined : direction;
 
@@ -298,7 +301,9 @@ export const MessageMetadata = forwardRef<HTMLDivElement, Readonly<PropsType>>(
           <div
             className={classNames(
               'module-message__metadata__status-icon',
-              `module-message__metadata__status-icon--${status}`
+              `module-message__metadata__status-icon--${status}`,
+              tellomiStatusAnimation &&
+                `module-message__metadata__status-icon--tellomi-animate-${tellomiStatusAnimation}`
             )}
             style={
               isSendingIndicatorHidden ? { visibility: 'hidden' } : undefined

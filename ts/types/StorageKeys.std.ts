@@ -98,6 +98,8 @@ export type StorageAccessType = {
   'read-receipt-setting': boolean;
   // Tellomi (M7 §3.4): when read receipts were switched on / off, to judge a message by arrival.
   'tellomi-read-receipt-history': ReadonlyArray<TellomiReadReceiptChange>;
+  // Tellomi (M7 §3.1, #1186): the one-time tip about the ticks was shown on this device.
+  'tellomi-checks-hint-shown': boolean;
   'sent-media-quality': SentMediaQualitySettingType;
   audioMessage: boolean;
   attachmentMigration_isComplete: boolean;
@@ -525,6 +527,8 @@ export const STORAGE_KEYS_TO_PRESERVE_WHEN_PRIMARY = [
 ] as const satisfies ReadonlyArray<keyof StorageAccessType>;
 
 const STORAGE_KEYS_TO_REMOVE_AFTER_UNLINK = [
+  // Tellomi (M7 §3.1, #1186): a newly linked device shows the tip about the ticks again
+  'tellomi-checks-hint-shown',
   'lastCallQualitySurveyTime',
   'lastCallQualityFailureSurveyTime',
   'cqsTestMode',

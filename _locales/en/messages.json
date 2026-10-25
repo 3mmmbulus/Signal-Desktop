@@ -2010,6 +2010,10 @@
     "messageformat": "Only visible to you",
     "description": "Tellomi (pinned-messages.md 3.3 / 3.5): small line under a message in the list of pinned messages that is pinned for me only; the other members never see this pin"
   },
+  "icu:TellomiChecksHint": {
+    "messageformat": "One check: sent. Two checks: read.",
+    "description": "Tellomi (M7 message-status spec 3.1, #1186): one-time toast after the first message this device sends, explaining one check vs two checks"
+  },
   "icu:TellomiPinBarHidden": {
     "messageformat": "Pinned messages hidden. They show again when something new is pinned.",
     "description": "Tellomi (pinned-messages.md 3.5): toast after hiding the pinned messages on this device, with Undo for 5 seconds"
