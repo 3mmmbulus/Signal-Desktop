@@ -94,10 +94,15 @@ describe('SpellCheck', () => {
           ['normal', 'icu:contextMenuCopyLink', undefined],
         ]
       );
+      const openItem = template[2];
+      const copyItem = template[3];
+      if (!openItem?.click || !copyItem?.click) {
+        throw new Error('expected open and copy menu items');
+      }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (template[2]?.click as any)();
+      (openItem.click as any)();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (template[3]?.click as any)();
+      (copyItem.click as any)();
       assert.strictEqual(opened, 1);
       assert.strictEqual(copied, 1);
     });

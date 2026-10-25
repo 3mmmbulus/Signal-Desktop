@@ -23,7 +23,7 @@ describe('extractLinks', () => {
       {
         start: 'visit '.length,
         length: 'meet.google.com/arst-asdf'.length,
-        url: 'http://meet.google.com/arst-asdf',
+        url: 'https://meet.google.com/arst-asdf',
       },
     ]);
   });

@@ -38,6 +38,10 @@ describe('adjustSchemelessLinkMatch (Tellomi)', () => {
       ['www.jd.com/a', 'https://www.jd.com/a'],
     ]);
     const [match] = linkify.match('打开baidu.com') ?? [];
+    assert.isDefined(match);
+    if (!match) {
+      throw new Error('expected a match');
+    }
     assert.strictEqual(adjustSchemelessLinkMatch(match)?.index, 2);
   });
 

@@ -13,7 +13,7 @@
 // Same rules as iOS `TellomiSchemelessLink` and Android `Linkifier`. The CJK punctuation rule
 // (`getLinkifiableLength`) is applied afterwards, unchanged.
 
-export const FILE_LIKE_TOP_LEVEL_DOMAINS: ReadonlySet<string> = new Set([
+const FILE_LIKE_TOP_LEVEL_DOMAINS: ReadonlySet<string> = new Set([
   'zip',
   'mov',
   'py',
