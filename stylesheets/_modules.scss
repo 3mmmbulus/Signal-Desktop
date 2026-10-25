@@ -1561,18 +1561,25 @@ $link-card-icon-gap: 6px;
 }
 
 .module-message__metadata__status-icon {
-  width: 12px;
+  // Tellomi (M7 §3.1, #1186, PM 2026-10-25): fixed status slot. One tick and two ticks share the
+  // same 18×12 canvas (the one tick sits where the first of the two ticks is), so the time does
+  // not move when a message turns read.
+  width: 18px;
   height: 12px;
   display: inline-block;
-  margin-inline: 6px;
-  // High margin to leave space for the increase when we go to two checks
+  margin-inline-start: 6px;
+  margin-inline-end: 0px;
   margin-bottom: 2px;
 }
 
 .module-message__metadata__status-icon--paused,
 .module-message__metadata__status-icon--sending {
+  // Tellomi (PM 2026-10-25): the 12×12 clock sits at the start of the 18px slot and turns around
+  // its own centre, once every 1.5 s
+  width: 12px;
+  margin-inline-end: 6px;
   @include mixins.only-when-page-is-visible {
-    animation: rotate 4s linear infinite;
+    animation: rotate 1.5s linear infinite;
   }
   @include mixins.color-svg(
     '../images/icons/v3/message_status/messagestatus-sending.svg',
@@ -1596,10 +1603,6 @@ $link-card-icon-gap: 6px;
 }
 .module-message__metadata__status-icon--read,
 .module-message__metadata__status-icon--viewed {
-  // We reduce the margin size to keep the overall width the same
-  margin-inline-end: 0px;
-  width: 18px;
-
   @include mixins.color-svg(
     '../images/icons/v3/message_status/tellomi-double-check.svg',
     currentColor
@@ -1612,10 +1615,7 @@ $link-card-icon-gap: 6px;
 .module-message__metadata--sticker {
   .module-message__metadata__status-icon--read,
   .module-message__metadata__status-icon--viewed {
-    color: light-dark(
-      variables.$color-ultramarine,
-      variables.$color-ultramarine-light
-    );
+    color: variables.$tellomi-tick-accent;
   }
 }
 
@@ -5450,7 +5450,8 @@ button.module-calling-participants-list__contact {
               flex-shrink: 0;
 
               margin-top: 4px;
-              width: 12px;
+              // Tellomi (PM 2026-10-25): fixed 18×12 status slot, same as the bubble
+              width: 18px;
               height: 12px;
               display: inline-block;
               margin-inline-start: 6px;
@@ -5469,8 +5470,11 @@ button.module-calling-participants-list__contact {
               }
 
               &--sending {
+                // Tellomi (PM 2026-10-25): 12×12 clock at the start of the slot, 1.5 s a turn
+                width: 12px;
+                margin-inline-end: 6px;
                 @include mixins.only-when-page-is-visible {
-                  animation: rotate 4s linear infinite;
+                  animation: rotate 1.5s linear infinite;
                 }
                 @include mixins.light-theme {
                   @include mixins.color-svg(
@@ -5498,10 +5502,7 @@ button.module-calling-participants-list__contact {
               &--viewed {
                 @include mixins.color-svg(
                   '../images/icons/v3/message_status/tellomi-double-check.svg',
-                  light-dark(
-                    variables.$color-ultramarine,
-                    variables.$color-ultramarine-light
-                  )
+                  variables.$tellomi-tick-accent
                 );
                 & {
                   width: 18px;
