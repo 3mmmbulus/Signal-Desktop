@@ -56,12 +56,35 @@ export function getLanguages(
   return matchedLocales;
 }
 
+/**
+ * Tellomi (TF43 P1, PM 2026-10-25): right-clicking a web link shows a menu for that link, after
+ * Telegram's behaviour (own implementation): the full URL on top, then Open / Copy Link. Copy
+ * shows the "link copied" toast at the bottom. Desktop has no system share sheet, so no Share.
+ */
+export function isTellomiWebLink(url: string): boolean {
+  return /^https?:\/\//i.test(url);
+}
+
+export function getTellomiLinkMenuTemplate(
+  url: string,
+  i18n: LocalizerType,
+  actions: Readonly<{ open: () => void; copy: () => void }>
+): MenuListType {
+  return [
+    { label: url, enabled: false },
+    { type: 'separator' },
+    { label: i18n('icu:TellomiLinkCard__action_open'), click: actions.open },
+    { label: i18n('icu:contextMenuCopyLink'), click: actions.copy },
+  ];
+}
+
 export const setup = (
   browserWindow: BrowserWindow,
   preferredSystemLocales: ReadonlyArray<string>,
   localeOverride: string | null,
   i18n: LocalizerType,
-  logger: LoggerType
+  logger: LoggerType,
+  openUrl?: (url: string) => void
 ): void => {
   const { session } = browserWindow.webContents;
 
@@ -104,6 +127,27 @@ export const setup = (
 
     const showMenu =
       params.isEditable || editFlags.canCopy || isLink || isImage;
+
+    // Tellomi (TF43 P1): a web link outside an editable field gets the link menu
+    if (
+      isLink &&
+      !params.isEditable &&
+      openUrl &&
+      isTellomiWebLink(params.linkURL)
+    ) {
+      const linkUrl = params.linkURL;
+      const menu = Menu.buildFromTemplate(
+        getTellomiLinkMenuTemplate(linkUrl, i18n, {
+          open: () => openUrl(linkUrl),
+          copy: () => {
+            clipboard.writeText(linkUrl);
+            browserWindow.webContents.send('tellomi:link-copied');
+          },
+        })
+      );
+      menu.popup({ window: browserWindow });
+      return;
+    }
 
     // Popup editor menu
     if (showMenu) {

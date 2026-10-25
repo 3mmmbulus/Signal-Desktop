@@ -518,6 +518,13 @@ ipc.on('show-release-notes', () => {
   }
 });
 
+// Tellomi (TF43 P1): "Copy Link" in the native link menu
+ipc.on('tellomi:link-copied', () => {
+  window.reduxActions?.toast.showToast({
+    toastType: ToastType.LinkCopied,
+  });
+});
+
 ipc.on('sql-error', () => {
   if (!window.reduxActions) {
     return;

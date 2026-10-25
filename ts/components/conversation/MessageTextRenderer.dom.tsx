@@ -28,6 +28,7 @@ import { AddNewLines } from './AddNewLines.dom.tsx';
 import type { LocalizerType } from '../../types/Util.std.ts';
 import type { FunJumboEmojiSize } from '../fun/FunEmoji.dom.tsx';
 import { Emoji } from '../../axo/emoji.std.ts';
+import { adjustSchemelessLinkMatch } from '../../util/tellomiSchemelessLink.std.ts';
 
 const { sortBy } = lodash;
 
@@ -444,7 +445,12 @@ export function extractLinks(
     return [];
   }
 
-  return matches.flatMap(match => {
+  return matches.flatMap(linkifyMatch => {
+    // Tellomi (TF43 P1): bare domains glued to CJK text, https, file names
+    const match = adjustSchemelessLinkMatch(linkifyMatch);
+    if (match == null) {
+      return [];
+    }
     // Tellomi (PM 2026-10-19): a link with a zero-width / bidi character is not clickable
     const length = getLinkifiableLength(match.text);
     if (length === 0) {
