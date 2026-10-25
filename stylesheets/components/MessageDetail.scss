@@ -96,27 +96,26 @@
     }
   }
 
+  // Tellomi (M7 §3.1, #1186): Tellomi's own ticks, no circle, same as the bubble: sent and
+  // delivered show one tick, read and viewed show two ticks in the accent colour. While our read
+  // receipts are off, read / viewed already arrive here as delivered (#97, M7 §3.6).
   &--Viewed:after,
   &--Read:after {
     // Viewed and read deliberately have the same icon.
     width: 18px;
-    @include normal-icon(
-      '../images/icons/v3/message_status/messagestatus-read.svg'
+    @include mixins.color-svg(
+      '../images/icons/v3/message_status/tellomi-double-check.svg',
+      light-dark(
+        variables.$color-ultramarine,
+        variables.$color-ultramarine-light
+      )
     );
   }
 
-  &--Delivered:after {
-    width: 18px;
-    @include normal-icon(
-      '../images/icons/v3/message_status/messagestatus-delivered.svg'
-    );
-  }
-
+  &--Delivered:after,
   &--Sent:after {
     width: 12px;
-    @include normal-icon(
-      '../images/icons/v3/message_status/messagestatus-sent.svg'
-    );
+    @include normal-icon('../images/icons/v3/message_status/tellomi-check.svg');
   }
 
   &--Pending:after {
