@@ -973,6 +973,14 @@ type ReadableInterface = {
       includeStoryReplies: boolean;
     }
   ) => MessageMetricsType | undefined;
+  // Tellomi (desktop audit 7.2 r2): one sent_at per local day that has messages.
+  getDaysWithMessagesForConversation: (
+    conversationId: string,
+    options: {
+      storyId?: string;
+      includeStoryReplies: boolean;
+    }
+  ) => Array<number>;
 
   getReactionByTimestamp: (
     fromId: string,

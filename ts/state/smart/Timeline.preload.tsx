@@ -41,7 +41,13 @@ import { isSignalConversation } from '../../util/isSignalConversation.dom.ts';
 import { getIsInFullScreenCall } from '../selectors/isInFullScreenCall.std.ts';
 import { TellomiJumpToDateContext } from '../../components/conversation/TellomiJumpToDateContext.dom.tsx';
 import { TellomiJumpToDateDialog } from '../../components/conversation/TellomiJumpToDateDialog.dom.tsx';
-import { jumpLowerBoundMs } from '../../util/tellomiJumpToDate.std.ts';
+import {
+  buildDaysWithMessagesSet,
+  jumpLowerBoundMs,
+} from '../../util/tellomiJumpToDate.std.ts';
+import { DataReader } from '../../sql/Client.preload.ts';
+import { isGroup } from '../../util/whatTypeOfConversation.dom.ts';
+import { drop } from '../../util/drop.std.ts';
 
 type ExternalProps = {
   id: string;
@@ -211,17 +217,34 @@ export const SmartTimeline = memo(function SmartTimeline({
   const targetedMessageId = targetedMessage?.id;
   const isSignalConvo = isSignalConversation(conversation);
 
-  // Tellomi (desktop audit 7.2)
-  const [jumpDialogTs, setJumpDialogTs] = useState<number | null>(null);
+  // Tellomi (desktop audit 7.2 r2): calendar greys out days with no messages.
+  const [jumpDialog, setJumpDialog] = useState<{
+    timestamp: number;
+    daysWithMessages: ReadonlySet<number>;
+  } | null>(null);
   const onTapDateHeader = useCallback(
     (timestamp: number, isFloating: boolean) => {
       if (isFloating) {
         jumpToConversationDate(id, jumpLowerBoundMs(timestamp));
-      } else {
-        setJumpDialogTs(timestamp);
+        return;
       }
+      drop(
+        (async () => {
+          if (conversation == null) {
+            return;
+          }
+          const dayTimestamps =
+            await DataReader.getDaysWithMessagesForConversation(id, {
+              includeStoryReplies: !isGroup(conversation),
+            });
+          setJumpDialog({
+            timestamp,
+            daysWithMessages: buildDaysWithMessagesSet(dayTimestamps),
+          });
+        })()
+      );
     },
-    [id, jumpToConversationDate]
+    [id, jumpToConversationDate, conversation]
   );
   const jumpContextValue = useMemo(
     () => ({ onTapDateHeader }),
@@ -230,74 +253,79 @@ export const SmartTimeline = memo(function SmartTimeline({
 
   return (
     <TellomiJumpToDateContext.Provider value={jumpContextValue}>
-    <Timeline
-      clearInvitedServiceIdsForNewlyCreatedGroup={
-        clearInvitedServiceIdsForNewlyCreatedGroup
-      }
-      clearTargetedMessage={clearTargetedMessage}
-      closeContactSpoofingReview={closeContactSpoofingReview}
-      conversationType={conversationType}
-      discardMessages={discardMessages}
-      getPreferredBadge={getPreferredBadge}
-      getTimestampForMessage={getTimestampForMessage}
-      hasContactSpoofingReview={hasContactSpoofingReview}
-      haveNewest={haveNewest}
-      haveOldest={haveOldest}
-      i18n={i18n}
-      id={id}
-      invitedContactsForNewlyCreatedGroup={invitedContactsForNewlyCreatedGroup}
-      isBlocked={isBlocked}
-      isConversationSelected={isConversationSelected}
-      isGroupV1AndDisabled={isGroupV1AndDisabled}
-      isGroupTerminated={isGroupTerminated}
-      isInFullScreenCall={isInFullScreenCall}
-      isIncomingMessageRequest={isIncomingMessageRequest}
-      isNearBottom={isNearBottom}
-      isSignalConversation={isSignalConvo}
-      isSomeoneTyping={isSomeoneTyping}
-      items={collapseSets}
-      loadNewerMessages={loadNewerMessages}
-      loadNewestMessages={loadNewestMessages}
-      loadOlderMessages={loadOlderMessages}
-      markMessageRead={markMessageRead}
-      maybePeekGroupCall={maybePeekGroupCall}
-      messageChangeCounter={messageChangeCounter}
-      messageLoadingState={messageLoadingState}
-      updateVisibleMessages={
-        AttachmentDownloadManager.updateVisibleTimelineMessages
-      }
-      oldestUnseenIndex={updatedOldestLastSeenIndex}
-      renderContactSpoofingReviewDialog={renderContactSpoofingReviewDialog}
-      renderHeroRow={renderHeroRow}
-      renderItem={renderItem}
-      renderTypingBubble={renderTypingBubble}
-      scrollToIndex={updatedScrollToIndex}
-      scrollToIndexCounter={scrollToIndexCounter}
-      scrollToOldestUnreadMention={scrollToOldestUnreadMention}
-      scrollToOldestUnreadReaction={scrollToOldestUnreadReaction}
-      markReactionsReadForVisibleMessages={markReactionsReadForVisibleMessages}
-      setCenterMessage={setCenterMessage}
-      setIsNearBottom={setIsNearBottom}
-      targetedMessageId={targetedMessageId}
-      targetMessage={targetMessage}
-      theme={theme}
-      totalUnseen={totalUnseen}
-      unreadCount={unreadCount}
-      unreadMentionsCount={unreadMentionsCount}
-      unreadReactionsCount={unreadReactionsCount}
-    />
-    {jumpDialogTs != null ? (
-      <TellomiJumpToDateDialog
-        open
+      <Timeline
+        clearInvitedServiceIdsForNewlyCreatedGroup={
+          clearInvitedServiceIdsForNewlyCreatedGroup
+        }
+        clearTargetedMessage={clearTargetedMessage}
+        closeContactSpoofingReview={closeContactSpoofingReview}
+        conversationType={conversationType}
+        discardMessages={discardMessages}
+        getPreferredBadge={getPreferredBadge}
+        getTimestampForMessage={getTimestampForMessage}
+        hasContactSpoofingReview={hasContactSpoofingReview}
+        haveNewest={haveNewest}
+        haveOldest={haveOldest}
         i18n={i18n}
-        initialTimestamp={jumpDialogTs}
-        onClose={() => setJumpDialogTs(null)}
-        onJump={dayStartMs => {
-          setJumpDialogTs(null);
-          jumpToConversationDate(id, dayStartMs);
-        }}
+        id={id}
+        invitedContactsForNewlyCreatedGroup={
+          invitedContactsForNewlyCreatedGroup
+        }
+        isBlocked={isBlocked}
+        isConversationSelected={isConversationSelected}
+        isGroupV1AndDisabled={isGroupV1AndDisabled}
+        isGroupTerminated={isGroupTerminated}
+        isInFullScreenCall={isInFullScreenCall}
+        isIncomingMessageRequest={isIncomingMessageRequest}
+        isNearBottom={isNearBottom}
+        isSignalConversation={isSignalConvo}
+        isSomeoneTyping={isSomeoneTyping}
+        items={collapseSets}
+        loadNewerMessages={loadNewerMessages}
+        loadNewestMessages={loadNewestMessages}
+        loadOlderMessages={loadOlderMessages}
+        markMessageRead={markMessageRead}
+        maybePeekGroupCall={maybePeekGroupCall}
+        messageChangeCounter={messageChangeCounter}
+        messageLoadingState={messageLoadingState}
+        updateVisibleMessages={
+          AttachmentDownloadManager.updateVisibleTimelineMessages
+        }
+        oldestUnseenIndex={updatedOldestLastSeenIndex}
+        renderContactSpoofingReviewDialog={renderContactSpoofingReviewDialog}
+        renderHeroRow={renderHeroRow}
+        renderItem={renderItem}
+        renderTypingBubble={renderTypingBubble}
+        scrollToIndex={updatedScrollToIndex}
+        scrollToIndexCounter={scrollToIndexCounter}
+        scrollToOldestUnreadMention={scrollToOldestUnreadMention}
+        scrollToOldestUnreadReaction={scrollToOldestUnreadReaction}
+        markReactionsReadForVisibleMessages={
+          markReactionsReadForVisibleMessages
+        }
+        setCenterMessage={setCenterMessage}
+        setIsNearBottom={setIsNearBottom}
+        targetedMessageId={targetedMessageId}
+        targetMessage={targetMessage}
+        theme={theme}
+        totalUnseen={totalUnseen}
+        unreadCount={unreadCount}
+        unreadMentionsCount={unreadMentionsCount}
+        unreadReactionsCount={unreadReactionsCount}
       />
-    ) : null}
+      {jumpDialog != null ? (
+        <TellomiJumpToDateDialog
+          open
+          i18n={i18n}
+          initialTimestamp={jumpDialog.timestamp}
+          daysWithMessages={jumpDialog.daysWithMessages}
+          onClose={() => setJumpDialog(null)}
+          onJump={dayStartMs => {
+            setJumpDialog(null);
+            jumpToConversationDate(id, dayStartMs);
+          }}
+        />
+      ) : null}
     </TellomiJumpToDateContext.Provider>
   );
 });

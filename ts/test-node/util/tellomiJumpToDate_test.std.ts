@@ -3,7 +3,8 @@
 
 import { assert } from 'chai';
 import {
-  endOfLocalDayMs,
+  buildDaysWithMessagesSet,
+  isJumpDayAvailable,
   jumpLowerBoundMs,
   startOfLocalDayMs,
 } from '../../util/tellomiJumpToDate.std.ts';
@@ -21,16 +22,42 @@ describe('tellomiJumpToDate', () => {
     assert.isAtMost(start, ts);
   });
 
-  it('endOfLocalDayMs is exclusive next midnight', () => {
-    const ts = new Date(2026, 9, 26, 15, 30, 0).getTime();
-    const end = endOfLocalDayMs(ts);
-    const start = startOfLocalDayMs(ts);
-    assert.strictEqual(end - start, 24 * 60 * 60 * 1000);
-    assert.strictEqual(new Date(end).getDate(), 27);
+  it('adjacent local midnights are 24h apart', () => {
+    const day = new Date(2026, 9, 26, 15, 30, 0).getTime();
+    const next = new Date(2026, 9, 27, 3, 0, 0).getTime();
+    const start = startOfLocalDayMs(day);
+    const nextStart = startOfLocalDayMs(next);
+    assert.strictEqual(nextStart - start, 24 * 60 * 60 * 1000);
+    assert.strictEqual(new Date(nextStart).getDate(), 27);
   });
 
   it('jumpLowerBoundMs matches start of the chosen day', () => {
     const afternoon = new Date(2026, 0, 1, 18, 0, 0).getTime();
-    assert.strictEqual(jumpLowerBoundMs(afternoon), startOfLocalDayMs(afternoon));
+    assert.strictEqual(
+      jumpLowerBoundMs(afternoon),
+      startOfLocalDayMs(afternoon)
+    );
+  });
+
+  // Tellomi (desktop audit 7.2 r2): empty days grey / not tappable
+  it('buildDaysWithMessagesSet collapses timestamps to local midnights', () => {
+    const morning = new Date(2026, 9, 26, 8, 0, 0).getTime();
+    const evening = new Date(2026, 9, 26, 21, 0, 0).getTime();
+    const nextDay = new Date(2026, 9, 27, 1, 0, 0).getTime();
+    const days = buildDaysWithMessagesSet([morning, evening, nextDay]);
+    assert.strictEqual(days.size, 2);
+    assert.isTrue(days.has(startOfLocalDayMs(morning)));
+    assert.isTrue(days.has(startOfLocalDayMs(nextDay)));
+  });
+
+  it('isJumpDayAvailable is false for days with no messages', () => {
+    const withMsg = new Date(2026, 9, 26, 12, 0, 0).getTime();
+    const empty = new Date(2026, 9, 25, 12, 0, 0).getTime();
+    const days = buildDaysWithMessagesSet([withMsg]);
+    assert.isTrue(isJumpDayAvailable(withMsg, days));
+    assert.isTrue(
+      isJumpDayAvailable(new Date(2026, 9, 26, 23, 59, 0).getTime(), days)
+    );
+    assert.isFalse(isJumpDayAvailable(empty, days));
   });
 });

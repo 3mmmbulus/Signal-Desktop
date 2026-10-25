@@ -4492,7 +4492,6 @@ function scrollToOldestUnreadReaction(
   };
 }
 
-
 // Tellomi (desktop audit 7.2): jump to the first message on or after dayStartMs
 // (local midnight). If none, fall back to newest (scroll to bottom via newest).
 function jumpToConversationDate(

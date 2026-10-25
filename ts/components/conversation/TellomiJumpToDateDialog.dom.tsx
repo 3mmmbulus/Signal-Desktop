@@ -1,7 +1,7 @@
 // Copyright 2026 重庆半格智能科技有限公司
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import { useCallback, useState, type JSX } from 'react';
+import { useCallback, useMemo, useState, type JSX } from 'react';
 import type { CalendarDate } from '@internationalized/date';
 import {
   fromDateToLocal,
@@ -13,26 +13,31 @@ import type { LocalizerType } from '../../types/Util.std.ts';
 import { AxoDialog } from '../../axo/AxoDialog.dom.tsx';
 import { tw } from '../../axo/tw.dom.tsx';
 import { DatePicker } from '../DatePicker.dom.tsx';
-import { jumpLowerBoundMs } from '../../util/tellomiJumpToDate.std.ts';
+import {
+  isJumpDayAvailable,
+  jumpLowerBoundMs,
+} from '../../util/tellomiJumpToDate.std.ts';
 
 export type PropsType = Readonly<{
   open: boolean;
   i18n: LocalizerType;
   initialTimestamp: number;
+  /** Local-midnight ms for days that have messages in this conversation. */
+  daysWithMessages: ReadonlySet<number>;
   onJump: (dayStartMs: number) => void;
   onClose: () => void;
 }>;
 
 /**
- * Tellomi (desktop audit 7.2): pick a day and jump to its first message.
- * Empty days are still selectable; jump lands on the first message on or after
- * that local midnight (same as iOS firstMessageOnOrAfter). Grey-out of empty
- * days is a follow-up.
+ * Tellomi (desktop audit 7.2 r2): pick a day and jump to its first message.
+ * Days with no messages are grey and not tappable (Telegram / iOS parity).
+ * Thumbnails are a later round.
  */
 export function TellomiJumpToDateDialog({
   open,
   i18n,
   initialTimestamp,
+  daysWithMessages,
   onJump,
   onClose,
 }: PropsType): JSX.Element {
@@ -40,15 +45,33 @@ export function TellomiJumpToDateDialog({
     toCalendarDate(fromDateToLocal(new Date(initialTimestamp)))
   );
 
-  const handleJump = useCallback(() => {
+  const isDateUnavailable = useCallback(
+    (d: CalendarDate) => {
+      const ms = d.toDate(getLocalTimeZone()).getTime();
+      return !isJumpDayAvailable(ms, daysWithMessages);
+    },
+    [daysWithMessages]
+  );
+
+  const selectedAvailable = useMemo(() => {
     if (date == null) {
+      return false;
+    }
+    return isJumpDayAvailable(
+      date.toDate(getLocalTimeZone()).getTime(),
+      daysWithMessages
+    );
+  }, [date, daysWithMessages]);
+
+  const handleJump = useCallback(() => {
+    if (date == null || !selectedAvailable) {
       return;
     }
     const dayStart = jumpLowerBoundMs(
       date.toDate(getLocalTimeZone()).getTime()
     );
     onJump(dayStart);
-  }, [date, onJump]);
+  }, [date, onJump, selectedAvailable]);
 
   return (
     <AxoDialog.Root
@@ -77,6 +100,7 @@ export function TellomiJumpToDateDialog({
               aria-label={i18n('icu:TellomiJumpToDateDialog__dateLabel')}
               value={date}
               onUpdateDate={setDate}
+              isDateUnavailable={isDateUnavailable}
             />
           </div>
         </AxoDialog.Body>
@@ -87,7 +111,7 @@ export function TellomiJumpToDateDialog({
             </AxoDialog.Action>
             <AxoDialog.Action
               variant="strong-primary"
-              disabled={date == null}
+              disabled={!selectedAvailable}
               onClick={handleJump}
             >
               {i18n('icu:TellomiJumpToDateDialog__jump')}
