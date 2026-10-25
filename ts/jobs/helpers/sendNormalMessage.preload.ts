@@ -77,7 +77,7 @@ import {
 } from '../../test-node/util/messageFailures.preload.ts';
 import { getMessageIdForLogging } from '../../util/idForLogging.preload.ts';
 import { send, sendSyncMessageOnly } from '../../messages/send.preload.ts';
-import { maybeShowTellomiChecksHint } from '../../util/tellomiChecksHint.preload.ts';
+import { noteTellomiChecksHintCandidate } from '../../util/tellomiChecksHint.preload.ts';
 import type { SignalService } from '../../protobuf/index.std.ts';
 import { eraseMessageContents } from '../../util/cleanup.preload.ts';
 import { shouldSendToDirectConversation } from './shouldSendToConversation.preload.ts';
@@ -273,6 +273,14 @@ export async function sendNormalMessage(
       `editedMessageTimestamp=${editedMessageTimestamp},`,
       `storyMessage=${Boolean(storyMessage)}`
     );
+
+    // Tellomi (M7 §3.1, #1186, PM 2026-10-25): this message may explain the ticks once it turns
+    // sent on screen (MessageMetadata); not Note to Self, edits or story replies
+    noteTellomiChecksHintCandidate(messageId, {
+      isNoteToSelf: isMe(conversation.attributes),
+      isEdit: Boolean(editedMessageTimestamp),
+      isStoryReply: Boolean(storyMessage || storyContext),
+    });
 
     let messageSendPromise: Promise<CallbackResultType | void>;
 
@@ -483,13 +491,6 @@ export async function sendNormalMessage(
     if (isViewOnce) {
       await eraseMessageContents(message, 'view-once-sent');
     }
-
-    // Tellomi (M7 §3.1, #1186): the first message this device sends explains the ticks, once
-    void maybeShowTellomiChecksHint({
-      isNoteToSelf: isMe(conversation.attributes),
-      isEdit: Boolean(editedMessageTimestamp),
-      isStoryReply: Boolean(storyMessage || storyContext),
-    });
   } catch (thrownError: unknown) {
     const errors = [thrownError, ...messageSendErrors];
     await handleMultipleSendErrors({

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import type { ReactNode, MouseEvent, JSX } from 'react';
-import { forwardRef, useCallback, useState } from 'react';
+import { forwardRef, useCallback, useRef, useState } from 'react';
 import classNames from 'classnames';
 
 import type { LocalizerType } from '../../types/Util.std.ts';
@@ -23,6 +23,7 @@ import { tw } from '../../axo/tw.dom.tsx';
 import { AxoConfirmDialog } from '../../axo/AxoConfirmDialog.dom.tsx';
 import { useTellomiSendingIndicatorHidden } from '../../hooks/useTellomiSendingIndicatorHidden.std.ts';
 import { useTellomiStatusAnimation } from '../../hooks/useTellomiStatusAnimation.std.ts';
+import { useTellomiChecksHintTrigger } from '../../hooks/useTellomiChecksHintTrigger.dom.ts';
 
 type PropsType = {
   canRetryDeleteForEveryone: boolean;
@@ -99,6 +100,15 @@ export const MessageMetadata = forwardRef<HTMLDivElement, Readonly<PropsType>>(
     });
     // Tellomi (M7 §3.1, #1186): one tick fades in, the second grows, only for a change seen live
     const tellomiStatusAnimation = useTellomiStatusAnimation(status);
+    // Tellomi (M7 §3.1, #1186, PM 2026-10-25): the one-time tip about the ticks, when this message
+    // first turns sent on screen
+    const tellomiStatusIconRef = useRef<HTMLDivElement>(null);
+    useTellomiChecksHintTrigger(
+      id,
+      status,
+      direction === 'outgoing' && !deletedForEveryone,
+      tellomiStatusIconRef
+    );
     const withImageNoCaption = !isSticker && !hasText && isShowingImage;
     const metadataDirection = isSticker ? undefined : direction;
 
@@ -299,6 +309,7 @@ export const MessageMetadata = forwardRef<HTMLDivElement, Readonly<PropsType>>(
         status !== 'error' &&
         status !== 'partial-sent' ? (
           <div
+            ref={tellomiStatusIconRef}
             className={classNames(
               'module-message__metadata__status-icon',
               `module-message__metadata__status-icon--${status}`,
