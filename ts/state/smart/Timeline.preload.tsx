@@ -98,6 +98,7 @@ export const SmartTimeline = memo(function SmartTimeline({
     markMessageRead,
     scrollToOldestUnreadMention,
     scrollToOldestUnreadReaction,
+    markReactionsReadForVisibleMessages,
     setCenterMessage,
     setIsNearBottom,
     targetMessage,
@@ -252,6 +253,7 @@ export const SmartTimeline = memo(function SmartTimeline({
       scrollToIndexCounter={scrollToIndexCounter}
       scrollToOldestUnreadMention={scrollToOldestUnreadMention}
       scrollToOldestUnreadReaction={scrollToOldestUnreadReaction}
+      markReactionsReadForVisibleMessages={markReactionsReadForVisibleMessages}
       setCenterMessage={setCenterMessage}
       setIsNearBottom={setIsNearBottom}
       targetedMessageId={targetedMessageId}

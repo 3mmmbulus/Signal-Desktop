@@ -39,6 +39,11 @@ export async function markConversationRead(
   options: {
     readAt?: number;
     sendReadReceipts: boolean;
+    // Tellomi (desktop audit 6.2 r2): reactions are marked read per visible
+    // message (markReactionsReadForMessages). Only an explicit "mark as read"
+    // of the whole chat also clears reactions by range. Message read status and
+    // read receipts are unaffected by this flag.
+    includeReactions?: boolean;
   } = {
     sendReadReceipts: true,
   }
@@ -62,10 +67,12 @@ export async function markConversationRead(
       conversationId,
       readMessageReceivedAt: readMessage.received_at,
     }),
-    DataWriter.getUnreadReactionsAndMarkRead({
-      conversationId,
-      readMessageReceivedAt: readMessage.received_at,
-    }),
+    options.includeReactions
+      ? DataWriter.getUnreadReactionsAndMarkRead({
+          conversationId,
+          readMessageReceivedAt: readMessage.received_at,
+        })
+      : Promise.resolve([]),
     DataWriter.getUnreadPollVotesAndMarkRead({
       conversationId,
       readMessageReceivedAt: readMessage.received_at,

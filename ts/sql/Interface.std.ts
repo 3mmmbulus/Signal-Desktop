@@ -1297,6 +1297,10 @@ type WritableInterface = {
     conversationId: string;
     readMessageReceivedAt: number;
   }) => Array<PollVoteReadResultType>;
+  getUnreadReactionsForMessagesAndMarkRead: (options: {
+    conversationId: string;
+    messageIds: ReadonlyArray<string>;
+  }) => Array<ReactionResultType>;
   markReactionAsRead: (
     targetAuthorServiceId: ServiceIdString,
     targetTimestamp: number

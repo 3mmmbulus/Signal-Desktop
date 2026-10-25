@@ -676,6 +676,7 @@ export const DataWriter: ServerWritableInterface = {
   removeMessage,
   removeMessages,
   markReactionAsRead,
+  getUnreadReactionsForMessagesAndMarkRead,
   markPollVoteAsRead,
   addReaction,
   removeReactionFromConversation,
@@ -3807,6 +3808,34 @@ function getUnreadReactionsAndMarkRead(
       readMessageReceivedAt,
       storyId: storyId || null,
     });
+}
+
+// Tellomi (desktop audit 6.2 r2): Telegram-style per-message reaction read.
+// Only reactions on the given (actually on-screen) messages are marked read.
+function getUnreadReactionsForMessagesAndMarkRead(
+  db: WritableDB,
+  {
+    conversationId,
+    messageIds,
+  }: {
+    conversationId: string;
+    messageIds: ReadonlyArray<string>;
+  }
+): Array<ReactionResultType> {
+  if (!messageIds.length) {
+    return [];
+  }
+  const [query, params] = sql`
+    UPDATE reactions
+    INDEXED BY reactions_unread
+    SET unread = 0
+    WHERE
+      conversationId = ${conversationId} AND
+      unread >= 1 AND
+      messageId IN (${sqlJoin(messageIds)})
+    RETURNING targetAuthorAci, targetTimestamp, messageId;
+  `;
+  return db.prepare(query).all<ReactionResultType>(params);
 }
 
 function markReactionAsRead(

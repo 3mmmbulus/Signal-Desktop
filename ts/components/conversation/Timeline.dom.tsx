@@ -135,6 +135,10 @@ export type PropsActionsType = {
   setIsNearBottom: (conversationId: string, isNearBottom: boolean) => void;
   scrollToOldestUnreadMention: (conversationId: string) => unknown;
   scrollToOldestUnreadReaction: (conversationId: string) => unknown;
+  markReactionsReadForVisibleMessages: (
+    conversationId: string,
+    messageIds: ReadonlyArray<string>
+  ) => unknown;
 };
 
 export type PropsType = PropsDataType &
@@ -421,6 +425,12 @@ export class Timeline extends Component<PropsType, StateType, SnapshotType> {
         }
 
         this.props.updateVisibleMessages?.(visibleMessageIds);
+
+        // Tellomi (desktop audit 6.2 r2): mark reactions read only on messages
+        // that are actually on screen, not by range. Message read is unchanged.
+        if (this.props.unreadReactionsCount && visibleMessageIds.length) {
+          this.props.markReactionsReadForVisibleMessages(id, visibleMessageIds);
+        }
 
         // If a message is fully visible, then you can see its bottom. If not, there's a
         //   very tall message around. We assume you can see the bottom of a message if
@@ -776,6 +786,28 @@ export class Timeline extends Component<PropsType, StateType, SnapshotType> {
     _prevState: Readonly<StateType>,
     snapshot: Readonly<SnapshotType>
   ): void {
+    // Tellomi (desktop audit 6.2 r2): a new reaction on a message that is
+    //   already on screen is read right away; others stay unread until seen.
+    if (
+      (this.props.unreadReactionsCount ?? 0) >
+      (prevProps.unreadReactionsCount ?? 0)
+    ) {
+      const visibleMessageIds: Array<string> = [];
+      for (const [element, ratio] of this.#intersectionRatios) {
+        const messageId =
+          ratio > 0 ? getMessageIdFromElement(element) : undefined;
+        if (messageId) {
+          visibleMessageIds.push(messageId);
+        }
+      }
+      if (visibleMessageIds.length) {
+        this.props.markReactionsReadForVisibleMessages(
+          this.props.id,
+          visibleMessageIds
+        );
+      }
+    }
+
     const {
       conversationType: previousConversationType,
       isInFullScreenCall: previousIsInFullScreenCall,

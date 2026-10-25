@@ -5193,6 +5193,7 @@ export class ConversationModel {
     options: {
       readAt?: number;
       sendReadReceipts: boolean;
+      includeReactions?: boolean;
     } = {
       sendReadReceipts: true,
     }
