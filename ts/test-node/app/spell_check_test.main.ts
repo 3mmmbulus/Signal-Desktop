@@ -3,7 +3,12 @@
 
 import { assert } from 'chai';
 
-import { getLanguages } from '../../../app/spell_check.main.ts';
+import {
+  getLanguages,
+  getTellomiLinkMenuTemplate,
+  isTellomiWebLink,
+} from '../../../app/spell_check.main.ts';
+import type { LocalizerType } from '../../types/Util.std.ts';
 
 describe('SpellCheck', () => {
   describe('getLanguages', () => {
@@ -58,6 +63,55 @@ describe('SpellCheck', () => {
         'en',
         'fr',
       ]);
+    });
+  });
+
+  // Tellomi (TF43 P1): right-click link menu
+  describe('getTellomiLinkMenuTemplate', () => {
+    const i18n = ((key: string) => key) as unknown as LocalizerType;
+
+    it('shows the full URL on top, then Open and Copy Link', () => {
+      let opened = 0;
+      let copied = 0;
+      const template = getTellomiLinkMenuTemplate(
+        'https://baidu.com/a?b=1',
+        i18n,
+        {
+          open: () => {
+            opened += 1;
+          },
+          copy: () => {
+            copied += 1;
+          },
+        }
+      );
+      assert.deepEqual(
+        template.map(item => [item.type ?? 'normal', item.label, item.enabled]),
+        [
+          ['normal', 'https://baidu.com/a?b=1', false],
+          ['separator', undefined, undefined],
+          ['normal', 'icu:TellomiLinkCard__action_open', undefined],
+          ['normal', 'icu:contextMenuCopyLink', undefined],
+        ]
+      );
+      const openItem = template[2];
+      const copyItem = template[3];
+      if (!openItem?.click || !copyItem?.click) {
+        throw new Error('expected open and copy menu items');
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (openItem.click as any)();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (copyItem.click as any)();
+      assert.strictEqual(opened, 1);
+      assert.strictEqual(copied, 1);
+    });
+
+    it('only web links get it', () => {
+      assert.isTrue(isTellomiWebLink('https://baidu.com'));
+      assert.isTrue(isTellomiWebLink('HTTP://x.com'));
+      assert.isFalse(isTellomiWebLink('mailto:a@b.com'));
+      assert.isFalse(isTellomiWebLink('sgnl://signal.group'));
     });
   });
 });

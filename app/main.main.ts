@@ -794,7 +794,9 @@ async function createWindow() {
     getPreferredSystemLocales(),
     getLocaleOverride(),
     getResolvedMessagesLocale().i18n,
-    log
+    log,
+    // Tellomi (TF43 P1): "Open" in the link menu goes the same way as clicking the link
+    url => drop(handleUrl(url))
   );
   if (!startInTray && windowConfig && windowConfig.maximized) {
     mainWindow.maximize();

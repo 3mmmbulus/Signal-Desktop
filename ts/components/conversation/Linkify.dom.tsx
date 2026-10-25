@@ -3,7 +3,7 @@
 
 import type { JSX } from 'react';
 
-import LinkifyIt, { type Match as LinkifyItMatch } from 'linkify-it';
+import LinkifyIt from 'linkify-it';
 
 import type { RenderTextCallbackType } from '../../types/Util.std.ts';
 import {
@@ -13,6 +13,10 @@ import {
 } from '../../types/LinkPreview.std.ts';
 import { missingCaseError } from '../../util/missingCaseError.std.ts';
 import { Emoji } from '../../axo/emoji.std.ts';
+import {
+  adjustSchemelessLinkMatch,
+  type AdjustedLinkMatch,
+} from '../../util/tellomiSchemelessLink.std.ts';
 
 export const linkify = new LinkifyIt()
   // This is all TLDs in place in 2010, according to [IANA's root zone database][0]
@@ -329,7 +333,7 @@ const defaultRenderNonLink: RenderTextCallbackType = ({ text }) => text;
 
 type ChunkDataItem = Readonly<{
   chunk: string;
-  matchData: ReadonlyArray<LinkifyItMatch>;
+  matchData: ReadonlyArray<AdjustedLinkMatch>;
 }>;
 
 export function Linkify(props: Props): JSX.Element {
@@ -345,7 +349,13 @@ export function Linkify(props: Props): JSX.Element {
     const chunk = segment.value;
 
     if (segment.kind === 'text') {
-      return { chunk, matchData: linkify.match(chunk) || [] };
+      return {
+        chunk,
+        // Tellomi (TF43 P1): bare domains glued to CJK text, https, file names
+        matchData: (linkify.match(chunk) || []).flatMap(
+          match => adjustSchemelessLinkMatch(match) ?? []
+        ),
+      };
     }
 
     if (segment.kind === 'emoji') {
