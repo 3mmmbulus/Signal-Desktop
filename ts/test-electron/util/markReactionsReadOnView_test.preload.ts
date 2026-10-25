@@ -28,12 +28,22 @@ const UNREAD = { readStatus: ReactionReadStatus.Unread };
 describe('Tellomi 6.2 r2: reactions read only when their message is seen', () => {
   let sandbox: sinon.SinonSandbox;
   let receiptsAdd: sinon.SinonStub;
+  let previousAci: ReturnType<typeof itemStorage.user.getAci>;
+  let previousDeviceId: ReturnType<typeof itemStorage.user.getDeviceId>;
+  let testAci: ReturnType<typeof generateAci>;
 
   before(() => {
     initializeExpiringMessagesService();
   });
 
   beforeEach(async () => {
+    // Isolate ACI: this file must pass when run alone (full suite used to
+    // hide a missing ACI because earlier files set one).
+    previousAci = itemStorage.user.getAci();
+    previousDeviceId = itemStorage.user.getDeviceId();
+    testAci = generateAci();
+    await itemStorage.user.setAciAndDeviceId(testAci, 1);
+
     await DataWriter._removeAllMessages();
     await DataWriter._removeAllReactions();
     sandbox = sinon.createSandbox();
@@ -41,8 +51,11 @@ describe('Tellomi 6.2 r2: reactions read only when their message is seen', () =>
     sandbox.stub(readSyncJobQueue, 'add').resolves();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     sandbox.restore();
+    if (previousAci !== undefined && previousDeviceId !== undefined) {
+      await itemStorage.user.setAciAndDeviceId(previousAci, previousDeviceId);
+    }
   });
 
   async function setup() {

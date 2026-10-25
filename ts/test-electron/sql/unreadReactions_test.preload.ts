@@ -21,7 +21,9 @@ const {
 const {
   _removeAllMessages,
   _removeAllReactions,
+  _removeAllConversations,
   addReaction,
+  saveConversation,
   saveMessages,
   getUnreadReactionsAndMarkRead,
 } = DataWriter;
@@ -33,6 +35,7 @@ describe('sql/unreadReactionsToMe (Tellomi 6.2)', () => {
   beforeEach(async () => {
     await _removeAllMessages();
     await _removeAllReactions();
+    await _removeAllConversations();
   });
 
   function makeMessage(
@@ -56,12 +59,13 @@ describe('sql/unreadReactionsToMe (Tellomi 6.2)', () => {
   function makeReaction(
     message: MessageAttributesType,
     targetAuthorAci: AciString,
-    emoji: ReactionType['emoji'] = Emoji.TADA
+    emoji: ReactionType['emoji'] = Emoji.TADA,
+    fromId: string = generateUuid()
   ): ReactionType {
     return {
       conversationId: message.conversationId,
       emoji,
-      fromId: generateUuid(),
+      fromId,
       messageId: message.id,
       messageReceivedAt: message.received_at,
       targetAuthorAci,
@@ -148,6 +152,55 @@ describe('sql/unreadReactionsToMe (Tellomi 6.2)', () => {
     );
     assert.isUndefined(
       await getOldestMessageWithUnreadReactionToMe(conversationId, ourAci)
+    );
+  });
+
+  it('excludes reactions I made on another linked device (fromId = me)', async () => {
+    const start = Date.now();
+    const conversationId = generateUuid();
+    const ourAci = generateAci();
+    const ourConversationId = generateUuid();
+
+    await saveConversation({
+      id: ourConversationId,
+      type: 'private',
+      version: 0,
+      serviceId: ourAci,
+      expireTimerVersion: 1,
+    });
+
+    const mine = makeMessage(conversationId, start + 1);
+    await saveMessages([mine], {
+      forceSave: true,
+      ourAci,
+      postSaveUpdates,
+    });
+
+    // Synced from another linked device: fromId is me, stored Unread
+    // (see Reactions.preload.ts). Must not inflate the unread button.
+    await addReaction(
+      makeReaction(mine, ourAci, Emoji.TADA, ourConversationId),
+      UNREAD
+    );
+
+    assert.strictEqual(
+      await getTotalUnreadReactionsToMeForConversation(conversationId, ourAci),
+      0
+    );
+    assert.isUndefined(
+      await getOldestMessageWithUnreadReactionToMe(conversationId, ourAci)
+    );
+
+    // Someone else's reaction on my message still counts
+    await addReaction(makeReaction(mine, ourAci, Emoji.ROCKET), UNREAD);
+    assert.strictEqual(
+      await getTotalUnreadReactionsToMeForConversation(conversationId, ourAci),
+      1
+    );
+    assert.strictEqual(
+      (await getOldestMessageWithUnreadReactionToMe(conversationId, ourAci))
+        ?.id,
+      mine.id
     );
   });
 });

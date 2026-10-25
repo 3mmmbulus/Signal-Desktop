@@ -4608,6 +4608,8 @@ function getTotalUnreadReactionsToMeForConversation(
   conversationId: string,
   ourAci: AciString
 ): number {
+  // Exclude reactions I made on another linked device (fromId = me). Those
+  // sync in as Unread (Reactions.preload.ts) but must not inflate the button.
   const [query, params] = sql`
     SELECT count(1)
     FROM reactions INDEXED BY reactions_unread
@@ -4615,6 +4617,9 @@ function getTotalUnreadReactionsToMeForConversation(
       reactions.conversationId = ${conversationId} AND
       reactions.unread >= 1 AND
       reactions.targetAuthorAci = ${ourAci} AND
+      reactions.fromId IS NOT (
+        SELECT id FROM conversations WHERE serviceId = ${ourAci} LIMIT 1
+      ) AND
       EXISTS (
         SELECT 1 FROM messages
         WHERE messages.id = reactions.messageId
@@ -4631,6 +4636,7 @@ function getOldestMessageWithUnreadReactionToMe(
   conversationId: string,
   ourAci: AciString
 ): MessageMetricsType | undefined {
+  // Same fromId≠me exclusion as getTotalUnreadReactionsToMeForConversation.
   const [query, params] = sql`
     SELECT messages.received_at, messages.sent_at, messages.id
     FROM reactions INDEXED BY reactions_unread
@@ -4639,6 +4645,9 @@ function getOldestMessageWithUnreadReactionToMe(
       reactions.conversationId = ${conversationId} AND
       reactions.unread >= 1 AND
       reactions.targetAuthorAci = ${ourAci} AND
+      reactions.fromId IS NOT (
+        SELECT id FROM conversations WHERE serviceId = ${ourAci} LIMIT 1
+      ) AND
       messages.isStory IS 0 AND
       messages.storyId IS NULL
     ORDER BY messages.received_at ASC, messages.sent_at ASC
