@@ -956,6 +956,14 @@ type ReadableInterface = {
       includeStoryReplies: boolean;
     }
   ) => MessageMetricsType | undefined;
+  getTotalUnreadReactionsToMeForConversation: (
+    conversationId: string,
+    ourAci: AciString
+  ) => number;
+  getOldestMessageWithUnreadReactionToMe: (
+    conversationId: string,
+    ourAci: AciString
+  ) => MessageMetricsType | undefined;
 
   getReactionByTimestamp: (
     fromId: string,

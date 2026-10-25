@@ -46,6 +46,24 @@
     }
   }
 
+  &__icon--unread-reactions {
+    height: 18px;
+    width: 18px;
+    @include mixins.light-theme {
+      @include mixins.color-svg(
+        '../images/icons/v3/heart/heart.svg',
+        variables.$color-gray-75
+      );
+    }
+
+    @include mixins.dark-theme {
+      @include mixins.color-svg(
+        '../images/icons/v3/heart/heart.svg',
+        variables.$color-gray-15
+      );
+    }
+  }
+
   &__icon--unread-messages {
     height: 20px;
     width: 20px;

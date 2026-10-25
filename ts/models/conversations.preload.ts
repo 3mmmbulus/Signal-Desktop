@@ -5206,20 +5206,31 @@ export class ConversationModel {
       storyId: undefined,
       includeStoryReplies: !isGroup(this.attributes),
     };
-    const [unreadCount, unreadMentionsCount] = await Promise.all([
-      DataReader.getTotalUnreadForConversation(this.id, options),
-      DataReader.getTotalUnreadMentionsOfMeForConversation(this.id, options),
-    ]);
+    const ourAci = itemStorage.user.getAci();
+    const [unreadCount, unreadMentionsCount, unreadReactionsCount] =
+      await Promise.all([
+        DataReader.getTotalUnreadForConversation(this.id, options),
+        DataReader.getTotalUnreadMentionsOfMeForConversation(this.id, options),
+        ourAci
+          ? DataReader.getTotalUnreadReactionsToMeForConversation(
+              this.id,
+              ourAci
+            )
+          : 0,
+      ]);
 
     const prevUnreadCount = this.get('unreadCount');
     const prevUnreadMentionsCount = this.get('unreadMentionsCount');
+    const prevUnreadReactionsCount = this.get('unreadReactionsCount') ?? 0;
     if (
       prevUnreadCount !== unreadCount ||
-      prevUnreadMentionsCount !== unreadMentionsCount
+      prevUnreadMentionsCount !== unreadMentionsCount ||
+      prevUnreadReactionsCount !== unreadReactionsCount
     ) {
       this.set({
         unreadCount,
         unreadMentionsCount,
+        unreadReactionsCount,
       });
       await DataWriter.updateConversation(this.attributes);
     }

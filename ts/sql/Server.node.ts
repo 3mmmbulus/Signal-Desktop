@@ -489,6 +489,8 @@ export const DataReader: ServerReadableInterface = {
   getAllStories,
   getNewerMessagesByConversation,
   getOldestUnreadMentionOfMeForConversation,
+  getTotalUnreadReactionsToMeForConversation,
+  getOldestMessageWithUnreadReactionToMe,
   getTotalUnreadForConversation,
   getTotalUnreadMentionsOfMeForConversation,
   getMessageMetricsForConversation,
@@ -4568,6 +4570,52 @@ function getOldestUnreadMentionOfMeForConversation(
       `;
 
   return db.prepare(query).get(params);
+}
+
+// Tellomi (desktop audit 6.2): unread reactions on my own messages, for the
+// "jump to unread reaction" button. Read-only; uses existing columns only.
+function getTotalUnreadReactionsToMeForConversation(
+  db: ReadableDB,
+  conversationId: string,
+  ourAci: AciString
+): number {
+  const [query, params] = sql`
+    SELECT count(1)
+    FROM reactions INDEXED BY reactions_unread
+    WHERE
+      reactions.conversationId = ${conversationId} AND
+      reactions.unread >= 1 AND
+      reactions.targetAuthorAci = ${ourAci} AND
+      EXISTS (
+        SELECT 1 FROM messages
+        WHERE messages.id = reactions.messageId
+          AND messages.isStory IS 0
+          AND messages.storyId IS NULL
+      )
+  `;
+  const row = db.prepare(query, { pluck: true }).get<number>(params);
+  return row ?? 0;
+}
+
+function getOldestMessageWithUnreadReactionToMe(
+  db: ReadableDB,
+  conversationId: string,
+  ourAci: AciString
+): MessageMetricsType | undefined {
+  const [query, params] = sql`
+    SELECT messages.received_at, messages.sent_at, messages.id
+    FROM reactions INDEXED BY reactions_unread
+    INNER JOIN messages ON messages.id = reactions.messageId
+    WHERE
+      reactions.conversationId = ${conversationId} AND
+      reactions.unread >= 1 AND
+      reactions.targetAuthorAci = ${ourAci} AND
+      messages.isStory IS 0 AND
+      messages.storyId IS NULL
+    ORDER BY messages.received_at ASC, messages.sent_at ASC
+    LIMIT 1;
+  `;
+  return db.prepare(query).get<MessageMetricsType>(params);
 }
 
 function getTotalUnreadForConversation(

@@ -82,6 +82,7 @@ type PropsHousekeepingType = {
   isSignalConversation: boolean;
   unreadCount?: number;
   unreadMentionsCount?: number;
+  unreadReactionsCount?: number;
   conversationType: 'direct' | 'group';
 
   targetedMessageId?: string;
@@ -133,6 +134,7 @@ export type PropsActionsType = {
   ) => void;
   setIsNearBottom: (conversationId: string, isNearBottom: boolean) => void;
   scrollToOldestUnreadMention: (conversationId: string) => unknown;
+  scrollToOldestUnreadReaction: (conversationId: string) => unknown;
 };
 
 export type PropsType = PropsDataType &
@@ -1110,10 +1112,12 @@ export class Timeline extends Component<PropsType, StateType, SnapshotType> {
       renderItem,
       renderTypingBubble,
       scrollToOldestUnreadMention,
+      scrollToOldestUnreadReaction,
       theme,
       totalUnseen,
       unreadCount,
       unreadMentionsCount,
+      unreadReactionsCount,
     } = this.props;
     const {
       scrollLocked,
@@ -1328,6 +1332,14 @@ export class Timeline extends Component<PropsType, StateType, SnapshotType> {
               </main>
               {shouldShowScrollDownButtons ? (
                 <div className="module-timeline__scrolldown-buttons">
+                  {unreadReactionsCount ? (
+                    <ScrollDownButton
+                      variant={ScrollDownButtonVariant.UNREAD_REACTIONS}
+                      count={unreadReactionsCount}
+                      onClick={() => scrollToOldestUnreadReaction(id)}
+                      i18n={i18n}
+                    />
+                  ) : null}
                   {unreadMentionsCount ? (
                     <ScrollDownButton
                       variant={ScrollDownButtonVariant.UNREAD_MENTIONS}

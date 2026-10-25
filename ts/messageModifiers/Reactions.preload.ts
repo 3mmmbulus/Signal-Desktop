@@ -587,6 +587,9 @@ export async function handleReaction(
       );
     }
 
+    // Tellomi (desktop audit 6.2): refresh the unread-reactions button count
+    conversation.throttledUpdateUnread();
+
     const currentLength = (message.get('reactions') || []).length;
     log.info(
       'handleReaction:',

@@ -11,6 +11,7 @@ import { getClassNamesFor } from '../../util/getClassNamesFor.std.ts';
 export enum ScrollDownButtonVariant {
   UNREAD_MESSAGES = 'unread-messages',
   UNREAD_MENTIONS = 'unread-mentions',
+  UNREAD_REACTIONS = 'unread-reactions',
 }
 
 export type ScrollDownButtonPropsType = {
@@ -44,6 +45,9 @@ export function ScrollDownButton({
       break;
     case ScrollDownButtonVariant.UNREAD_MENTIONS:
       altText = i18n('icu:mentionsBelow');
+      break;
+    case ScrollDownButtonVariant.UNREAD_REACTIONS:
+      altText = i18n('icu:ScrollDownButton--unreadReactions');
       break;
     default:
       throw new Error(`Unexpected variant: ${variant}`);

@@ -515,6 +515,9 @@
   "icu:mentionsBelow": {
     "messageformat": "下面提及我的新消息"
   },
+  "icu:ScrollDownButton--unreadReactions": {
+    "messageformat": "我的消息有新回应"
+  },
   "icu:unreadMessages": {
     "messageformat": "{count, plural, other {{count,number} 条未读消息}}"
   },

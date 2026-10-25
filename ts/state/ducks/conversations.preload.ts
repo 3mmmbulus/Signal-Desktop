@@ -446,6 +446,7 @@ export type ConversationType = ReadonlyDeep<
     searchableTitle?: string;
     unreadCount?: number;
     unreadMentionsCount?: number;
+    unreadReactionsCount?: number;
     isSelected?: boolean;
     isFetchingUUID?: boolean;
     typingContactIdTimestamps?: Record<string, number>;
@@ -1258,6 +1259,7 @@ export const actions = {
   saveAvatarToDisk,
   scrollToMessage,
   scrollToOldestUnreadMention,
+  scrollToOldestUnreadReaction,
   sendPollVote,
   setPendingRequestedAvatarDownload,
   startAvatarDownload,
@@ -4450,6 +4452,33 @@ function scrollToOldestUnreadMention(
     }
 
     dispatch(scrollToMessage(conversationId, oldestUnreadMention.id));
+  };
+}
+
+// Tellomi (desktop audit 6.2): jump to the oldest of my messages that has an
+// unread reaction. Reading it is left to the normal mark-read-on-view flow.
+function scrollToOldestUnreadReaction(
+  conversationId: string
+): ThunkAction<void, RootStateType, unknown, NoopActionType> {
+  return async dispatch => {
+    const ourAci = itemStorage.user.getAci();
+    if (!ourAci) {
+      log.warn('scrollToOldestUnreadReaction: no ourAci');
+      return;
+    }
+
+    const oldest = await DataReader.getOldestMessageWithUnreadReactionToMe(
+      conversationId,
+      ourAci
+    );
+    if (!oldest) {
+      log.warn(
+        `No unread reaction found for conversation: [${conversationId}]`
+      );
+      return;
+    }
+
+    dispatch(scrollToMessage(conversationId, oldest.id));
   };
 }
 

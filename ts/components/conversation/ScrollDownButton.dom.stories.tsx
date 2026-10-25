@@ -45,3 +45,9 @@ export const UnreadMentions = Template.bind({});
 UnreadMentions.args = createProps({
   variant: ScrollDownButtonVariant.UNREAD_MENTIONS,
 });
+
+export const UnreadReactions = Template.bind({});
+UnreadReactions.args = createProps({
+  variant: ScrollDownButtonVariant.UNREAD_REACTIONS,
+  count: 3,
+});
