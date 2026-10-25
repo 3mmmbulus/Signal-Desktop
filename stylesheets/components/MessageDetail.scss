@@ -105,22 +105,21 @@
     width: 18px;
     @include mixins.color-svg(
       '../images/icons/v3/message_status/tellomi-double-check.svg',
-      light-dark(
-        variables.$color-ultramarine,
-        variables.$color-ultramarine-light
-      )
+      variables.$tellomi-tick-accent
     );
   }
 
   &--Delivered:after,
   &--Sent:after {
-    width: 12px;
+    // Tellomi (PM 2026-10-25): 18×12 canvas, the one tick sits where the first of two ticks is
+    width: 18px;
     @include normal-icon('../images/icons/v3/message_status/tellomi-check.svg');
   }
 
   &--Pending:after {
     width: 12px;
-    animation: rotate 4s linear infinite;
+    // Tellomi (PM 2026-10-25): one turn every 1.5 s, same on all three clients
+    animation: rotate 1.5s linear infinite;
     @include normal-icon(
       '../images/icons/v3/message_status/messagestatus-sending.svg'
     );

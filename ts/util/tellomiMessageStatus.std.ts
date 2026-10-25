@@ -185,3 +185,23 @@ export function tellomiShouldShowChecksHint({
 }>): boolean {
   return !alreadyShown && !isNoteToSelf && !isEdit && !isStoryReply;
 }
+
+/**
+ * Tellomi (M7 §3.1, tellomi/tellomi#1186, PM 2026-10-25): the one-time tip fires when one of our
+ * own messages first turns sent while it is on screen. One tick or straight to two ticks both
+ * count; delivered (drawn as one tick) too.
+ */
+export function tellomiIsFirstSentTransition(
+  previous: MessageStatusType | undefined,
+  next: MessageStatusType | undefined
+): boolean {
+  if (previous !== 'sending' && previous !== 'paused') {
+    return false;
+  }
+  return (
+    next === 'sent' ||
+    next === 'delivered' ||
+    next === 'read' ||
+    next === 'viewed'
+  );
+}

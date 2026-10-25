@@ -94,6 +94,9 @@ $color-ultramarine-dawn: #406ec9;
 $color-ultramarine-pastel: #abc4f8;
 $color-ultramarine-pale: #d2dffb;
 $color-ultramarine: #2c6bed;
+// Tellomi (DESIGN.md §1.1, PM 2026-10-25): the ticks' accent is the client accent token,
+// #2267F5 light / #2D70FA dark (high contrast #0A43B9 / #5D92FF), same as iOS and Android
+$tellomi-tick-accent: var(--axo-color-fill-accent);
 $color-link: #315ff4;
 
 // Flat colors
