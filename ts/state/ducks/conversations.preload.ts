@@ -1261,6 +1261,7 @@ export const actions = {
   scrollToMessage,
   scrollToOldestUnreadMention,
   scrollToOldestUnreadReaction,
+  jumpToConversationDate,
   markReactionsReadForVisibleMessages,
   sendPollVote,
   setPendingRequestedAvatarDownload,
@@ -4488,6 +4489,49 @@ function scrollToOldestUnreadReaction(
     }
 
     dispatch(scrollToMessage(conversationId, oldest.id));
+  };
+}
+
+
+// Tellomi (desktop audit 7.2): jump to the first message on or after dayStartMs
+// (local midnight). If none, fall back to newest (scroll to bottom via newest).
+function jumpToConversationDate(
+  conversationId: string,
+  dayStartMs: number
+): ThunkAction<void, RootStateType, unknown, NoopActionType> {
+  return async (dispatch, getState) => {
+    const conversation = getOwn(
+      getState().conversations.conversationLookup,
+      conversationId
+    );
+    if (!conversation) {
+      log.warn(`jumpToConversationDate: no conversation [${conversationId}]`);
+      return;
+    }
+
+    const first = await DataReader.getFirstMessageOnOrAfterTimestamp(
+      conversationId,
+      dayStartMs,
+      {
+        includeStoryReplies: !isGroup(conversation),
+      }
+    );
+
+    if (!first) {
+      log.info(
+        `jumpToConversationDate: no message on/after ${dayStartMs} in [${conversationId}]; loading newest`
+      );
+      const metrics = await DataReader.getMessageMetricsForConversation({
+        conversationId,
+        includeStoryReplies: !isGroup(conversation),
+      });
+      if (metrics.newest) {
+        dispatch(scrollToMessage(conversationId, metrics.newest.id));
+      }
+      return;
+    }
+
+    dispatch(scrollToMessage(conversationId, first.id));
   };
 }
 

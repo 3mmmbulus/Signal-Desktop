@@ -11,6 +11,7 @@ import { drop } from '../../util/drop.std.ts';
 import { TimelineDate } from './TimelineDateHeader.dom.tsx';
 import { Spinner } from '../Spinner.dom.tsx';
 import { tw } from '../../axo/tw.dom.tsx';
+import { useTellomiJumpToDate } from './TellomiJumpToDateContext.dom.tsx';
 
 export type PropsType = Readonly<{
   i18n: LocalizerType;
@@ -29,6 +30,8 @@ export function TimelineFloatingHeader({
 }: PropsType): ReactElement {
   const [hasRendered, setHasRendered] = useState(false);
   const [showSpinner, setShowSpinner] = useState(isLoading);
+  // Tellomi (desktop audit 7.2): stuck date → jump to that day's first message.
+  const jump = useTellomiJumpToDate();
 
   useEffect(() => {
     setHasRendered(true);
@@ -68,6 +71,16 @@ export function TimelineFloatingHeader({
     }
   }, [isLoading, showSpinner, spinnerSpringRef]);
 
+  const datePill = (
+    <div
+      className={tw(
+        'rounded-full bg-material-tertiary px-2.5 py-1.5 type-body-medium text-secondary shadow-elevation-1 backdrop-blur-thin'
+      )}
+    >
+      <TimelineDate i18n={i18n} timestamp={timestamp} />
+    </div>
+  );
+
   return (
     <div
       aria-level={5}
@@ -81,13 +94,18 @@ export function TimelineFloatingHeader({
       role="heading"
       style={style}
     >
-      <div
-        className={tw(
-          'rounded-full bg-material-tertiary px-2.5 py-1.5 type-body-medium text-secondary shadow-elevation-1 backdrop-blur-thin'
-        )}
-      >
-        <TimelineDate i18n={i18n} timestamp={timestamp} />
-      </div>
+      {jump ? (
+        <button
+          type="button"
+          onClick={() => jump.onTapDateHeader(timestamp, true)}
+          aria-label={i18n('icu:TellomiJumpToDateDialog__title')}
+          className={tw('cursor-pointer border-0 bg-transparent p-0')}
+        >
+          {datePill}
+        </button>
+      ) : (
+        datePill
+      )}
       {showSpinner && (
         <animated.div
           className="TimelineFloatingHeader__spinner-container"

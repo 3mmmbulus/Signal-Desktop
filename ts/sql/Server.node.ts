@@ -491,6 +491,7 @@ export const DataReader: ServerReadableInterface = {
   getOldestUnreadMentionOfMeForConversation,
   getTotalUnreadReactionsToMeForConversation,
   getOldestMessageWithUnreadReactionToMe,
+  getFirstMessageOnOrAfterTimestamp,
   getTotalUnreadForConversation,
   getTotalUnreadMentionsOfMeForConversation,
   getMessageMetricsForConversation,
@@ -4653,6 +4654,34 @@ function getOldestMessageWithUnreadReactionToMe(
     ORDER BY messages.received_at ASC, messages.sent_at ASC
     LIMIT 1;
   `;
+  return db.prepare(query).get<MessageMetricsType>(params);
+}
+
+
+// Tellomi (desktop audit 7.2): first non-story message with sent_at >= timestamp
+// (local midnight of the chosen day). Used by jump-to-date.
+function getFirstMessageOnOrAfterTimestamp(
+  db: ReadableDB,
+  conversationId: string,
+  timestamp: number,
+  {
+    storyId,
+    includeStoryReplies,
+  }: {
+    storyId?: string;
+    includeStoryReplies: boolean;
+  }
+): MessageMetricsType | undefined {
+  const [query, params] = sql`
+    SELECT received_at, sent_at, id FROM messages WHERE
+        conversationId = ${conversationId} AND
+        isStory IS 0 AND
+        (${_storyIdPredicate(storyId, includeStoryReplies)}) AND
+        sent_at >= ${timestamp}
+      ORDER BY received_at ASC, sent_at ASC
+      LIMIT 1;
+  `;
+
   return db.prepare(query).get<MessageMetricsType>(params);
 }
 
