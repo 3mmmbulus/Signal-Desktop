@@ -9500,5 +9500,13 @@
   },
   "icu:TellomiJumpToDateDialog__jump": {
     "messageformat": "跳转"
+  },
+  "icu:TellomiVoicePause__pause_recording": {
+    "messageformat": "暂停录音",
+    "description": "Tellomi (desktop audit 3.3): accessible label for the pause button while recording a voice note"
+  },
+  "icu:TellomiVoicePause__resume_recording": {
+    "messageformat": "继续录音",
+    "description": "Tellomi (desktop audit 3.3): accessible label for the resume button while a voice note recording is paused"
   }
 }

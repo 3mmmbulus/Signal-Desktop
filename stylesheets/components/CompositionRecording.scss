@@ -41,6 +41,12 @@
     & {
       animation: pulse 2s infinite;
     }
+
+    // Tellomi (audit 3.3): freeze the mic pulse while paused.
+    &--paused {
+      animation: none;
+      opacity: 0.55;
+    }
   }
 
   &__timer {

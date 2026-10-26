@@ -4,20 +4,32 @@
 import { memo, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { CompositionRecording } from '../../components/CompositionRecording.dom.tsx';
-import { useAudioRecorderActions } from '../ducks/audioRecorder.preload.ts';
+import {
+  getRecordingElapsedMs,
+  useAudioRecorderActions,
+} from '../ducks/audioRecorder.preload.ts';
 import { useComposerActions } from '../ducks/composer.preload.ts';
 import { useToastActions } from '../ducks/toast.preload.ts';
 import { getSelectedConversationId } from '../selectors/nav.std.ts';
 import { getIntl } from '../selectors/user.std.ts';
-import { getRecordingPeaks } from '../selectors/audioRecorder.std.ts';
+import {
+  getIsRecordingPaused,
+  getRecordingPeaks,
+} from '../selectors/audioRecorder.std.ts';
 
 export const SmartCompositionRecording = memo(
   function SmartCompositionRecording() {
     const i18n = useSelector(getIntl);
     const selectedConversationId = useSelector(getSelectedConversationId);
-    const { errorRecording, cancelRecording, completeRecording } =
-      useAudioRecorderActions();
+    const {
+      errorRecording,
+      cancelRecording,
+      completeRecording,
+      pauseRecording,
+      resumeRecording,
+    } = useAudioRecorderActions();
     const peaks = useSelector(getRecordingPeaks);
+    const isPaused = useSelector(getIsRecordingPaused);
 
     const { sendMultiMediaMessage, saveDraftRecordingIfNeeded: saveDraft } =
       useComposerActions();
@@ -42,6 +54,16 @@ export const SmartCompositionRecording = memo(
       }
     }, [saveDraft, selectedConversationId]);
 
+    const handlePause = useCallback(() => {
+      pauseRecording();
+    }, [pauseRecording]);
+
+    const handleResume = useCallback(() => {
+      resumeRecording();
+    }, [resumeRecording]);
+
+    const getElapsedMs = useCallback(() => getRecordingElapsedMs(), []);
+
     if (!selectedConversationId) {
       return null;
     }
@@ -56,6 +78,10 @@ export const SmartCompositionRecording = memo(
         showToast={showToast}
         hideToast={hideToast}
         peaks={peaks}
+        isPaused={isPaused}
+        onPause={handlePause}
+        onResume={handleResume}
+        getElapsedMs={getElapsedMs}
       />
     );
   }

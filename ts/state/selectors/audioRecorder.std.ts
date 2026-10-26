@@ -28,3 +28,10 @@ export const getRecordingPeaks = createSelector(
     return audioRecorder.peaks;
   }
 );
+
+export const getIsRecordingPaused = createSelector(
+  getAudioRecorder,
+  audioRecorder => {
+    return audioRecorder.isPaused;
+  }
+);
