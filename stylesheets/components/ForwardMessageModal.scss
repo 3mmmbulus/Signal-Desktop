@@ -53,9 +53,37 @@
   &__footer {
     @include mixins.font-body-2;
     display: flex;
-    align-items: center;
+    flex-direction: column;
     flex-grow: 1;
+    gap: 8px;
+    width: 100%;
+  }
+
+  &__footer-row {
+    display: flex;
+    align-items: center;
     justify-content: space-between;
+    width: 100%;
+  }
+
+  // Tellomi (audit 5.4): hide caption switch — align Android forward sheet.
+  &__hide-caption {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    cursor: pointer;
+    user-select: none;
+
+    &__label {
+      @include mixins.font-body-2;
+      color: variables.$color-gray-90;
+
+      @include mixins.dark-theme() {
+        color: variables.$color-gray-05;
+      }
+    }
   }
 
   // Disable cursor since images are non-clickable

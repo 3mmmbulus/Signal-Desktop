@@ -12645,5 +12645,9 @@
   "icu:TellomiEmojiSuggest__accessibility_label": {
     "messageformat": "Emoji suggestions",
     "description": "Tellomi (desktop audit 3.4): accessibility label for the emoji suggestion row above the message input while typing"
+  },
+  "icu:TellomiForwardHideCaption__label": {
+    "messageformat": "Hide Caption",
+    "description": "Tellomi (desktop audit 5.4): switch on the forward modal to strip media captions when forwarding; sender is always hidden by protocol so there is no hide-sender switch"
   }
 }
