@@ -343,6 +343,8 @@ export type PropsData = {
   tellomiCaptionAboveMedia?: boolean;
   // Tellomi (ADR-0079): a view-once that closes this many seconds after it is opened.
   tellomiViewOnceSeconds?: number;
+  // Tellomi (desktop audit 1.3): own group message — Info menu shows Read N/M when set.
+  tellomiReadBy?: Readonly<{ read: number; total: number }>;
 
   isTapToView?: boolean;
   isTapToViewExpired?: boolean;

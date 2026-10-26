@@ -12645,5 +12645,9 @@
   "icu:TellomiEmojiSuggest__accessibility_label": {
     "messageformat": "Emoji suggestions",
     "description": "Tellomi (desktop audit 3.4): accessibility label for the emoji suggestion row above the message input while typing"
+  },
+  "icu:MessageContextMenu__tellomi_read_by": {
+    "messageformat": "Read {read, number}/{total, number}",
+    "description": "Tellomi (desktop audit 1.3): group context-menu Info item for an outgoing message; shows how many recipients have read it. Still opens message details. Aligns Android #425 / iOS #377."
   }
 }

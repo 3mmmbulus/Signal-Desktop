@@ -212,6 +212,7 @@ import { isDownloadableOrBackfillable } from '../../util/downloadAttachment.prel
 import { getTellomiBubbleCaption } from '../../util/tellomiCaptions.std.ts';
 import { getTellomiViewOnceSeconds } from '../../util/tellomiViewOnceTimer.std.ts';
 import { tellomiDisplayStatus } from '../../util/tellomiMessageStatus.std.ts';
+import { tellomiReadByMenuCounts } from '../../util/tellomiReadByMenuTitle.std.ts';
 
 const { groupBy, isEmpty, isNumber, isObject, map } = lodash;
 
@@ -1252,6 +1253,14 @@ const getPropsForMessage = (
     tellomiViewOnceSeconds: getTellomiViewOnceSeconds({
       isViewOnce: message.isViewOnce,
       seconds: message.tellomiViewOnceSeconds,
+    }),
+    // Tellomi (desktop audit 1.3): Info → Read N/M for own group messages
+    tellomiReadBy: tellomiReadByMenuCounts({
+      isGroup,
+      isOutgoing: !isIncoming(message),
+      readReceiptsEnabled: options.readReceiptsEnabled ?? true,
+      sendStateByConversationId: message.sendStateByConversationId,
+      ourConversationId,
     }),
     isMessageRequestAccepted,
     isPinned,
