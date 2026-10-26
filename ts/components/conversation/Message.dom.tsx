@@ -154,6 +154,12 @@ import type { MemberLabelType } from '../../types/GroupMemberLabels.std.ts';
 import type { ContactModalStateType } from '../../types/globalModals.std.ts';
 import { tw } from '../../axo/tw.dom.tsx';
 import { Emoji } from '../../axo/emoji.std.ts';
+import {
+  TellomiSingleEmojiAnimationPlayer,
+  cancelTellomiSingleEmojiAnimation,
+  playTellomiSingleEmojiAnimation,
+  tellomiSingleEmojiReduceMotion,
+} from '../../util/tellomiSingleEmojiAnimationPlayer.std.ts';
 import { AxoButton } from '../../axo/AxoButton.dom.tsx';
 
 const { drop, take, unescape } = lodash;
@@ -688,6 +694,8 @@ export class Message extends PureComponent<Props, State> {
   };
 
   readonly #metadataRef: RefObject<HTMLDivElement | null> = createRef();
+  /** Tellomi (audit 4.2): body text node for single-emoji pop animation. */
+  readonly #bodyTextRef: RefObject<HTMLDivElement | null> = createRef();
 
   public expirationCheckInterval: NodeJS.Timeout | undefined;
 
@@ -817,9 +825,16 @@ export class Message extends PureComponent<Props, State> {
     }
 
     document.addEventListener('selectionchange', this.#handleSelectionChange);
+
+    // Tellomi (audit 4.2): single-emoji pop on first appear.
+    this.#tellomiMaybePlaySingleEmojiAppear();
   }
 
   public override componentWillUnmount(): void {
+    const body = this.#bodyTextRef.current;
+    if (body) {
+      cancelTellomiSingleEmojiAnimation(body);
+    }
     clearTimeoutIfNecessary(this.targetedTimeout);
     clearTimeoutIfNecessary(this.expirationCheckInterval);
     clearTimeoutIfNecessary(this.expiredTimeout);
@@ -833,7 +848,7 @@ export class Message extends PureComponent<Props, State> {
   }
 
   public override componentDidUpdate(prevProps: Readonly<Props>): void {
-    const { isTargeted, status, timestamp } = this.props;
+    const { isTargeted, status, timestamp, id } = this.props;
 
     this.startTargetedTimer();
     this.#startDeleteForEveryoneTimerIfApplicable();
@@ -843,6 +858,15 @@ export class Message extends PureComponent<Props, State> {
     }
 
     this.checkExpired();
+
+    // Tellomi (audit 4.2): stop pop when rebound to another message; play appear for the new id.
+    if (prevProps.id !== id) {
+      const body = this.#bodyTextRef.current;
+      if (body) {
+        cancelTellomiSingleEmojiAnimation(body);
+      }
+      this.#tellomiMaybePlaySingleEmojiAppear();
+    }
 
     if (
       prevProps.status === 'sending' &&
@@ -1091,6 +1115,60 @@ export class Message extends PureComponent<Props, State> {
       author.title &&
       !shouldCollapseAbove
     );
+  }
+
+  /** Tellomi (audit 4.2): jumbo count when this bubble is sticker-like emoji-only; else null. */
+  #singleEmojiJumboCount(): number | null {
+    if (!this.#canRenderStickerLikeEmoji()) {
+      return null;
+    }
+    // #canRenderStickerLikeEmoji fills #cachedEmojifyData when text is jumbo.
+    return this.#cachedEmojifyData?.count ?? null;
+  }
+
+  #tellomiMaybePlaySingleEmojiAppear(): void {
+    const count = this.#singleEmojiJumboCount();
+    if (count !== 1) {
+      return;
+    }
+    const { id } = this.props;
+    const reduce = tellomiSingleEmojiReduceMotion();
+    if (
+      !TellomiSingleEmojiAnimationPlayer.shared.consumeAppear(id, count, reduce)
+    ) {
+      return;
+    }
+    const messageId = id;
+    // Defer so layout has the text node mounted (matches iOS DispatchQueue.main.async).
+    requestAnimationFrame(() => {
+      if (this.props.id !== messageId) {
+        return;
+      }
+      const el = this.#bodyTextRef.current;
+      if (el) {
+        playTellomiSingleEmojiAnimation(el);
+      }
+    });
+  }
+
+  /** @returns true if the click was consumed as a single-emoji replay. */
+  #tellomiMaybeReplaySingleEmoji(): boolean {
+    const count = this.#singleEmojiJumboCount();
+    if (count !== 1) {
+      return false;
+    }
+    const reduce = tellomiSingleEmojiReduceMotion();
+    if (
+      !TellomiSingleEmojiAnimationPlayer.shared.shouldPlayOnTap(count, reduce)
+    ) {
+      return false;
+    }
+    const el = this.#bodyTextRef.current;
+    if (!el) {
+      return false;
+    }
+    playTellomiSingleEmojiAnimation(el);
+    return true;
   }
 
   #cachedEmojifyData: EmojifyData | null = null;
@@ -3167,6 +3245,7 @@ export class Message extends PureComponent<Props, State> {
 
     return (
       <div // oxlint-disable-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-static-element-interactions
+        ref={this.#bodyTextRef}
         className={classNames(
           'module-message__text',
           `module-message__text--${direction}`,
@@ -4038,6 +4117,11 @@ export class Message extends PureComponent<Props, State> {
   };
 
   public handleClick = (event: MouseEvent): void => {
+    // Tellomi (audit 4.2): tapping a single-emoji message replays its pop.
+    if (this.#tellomiMaybeReplaySingleEmoji()) {
+      return;
+    }
+
     // We don't want clicks on body text to result in the 'default action' for the message
     const { text } = this.props;
     if (text && text.length > 0) {
