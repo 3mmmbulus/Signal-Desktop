@@ -12641,5 +12641,9 @@
   "icu:TellomiVoicePause__resume_recording": {
     "messageformat": "Resume recording",
     "description": "Tellomi (desktop audit 3.3): accessible label for the resume button while a voice note recording is paused"
+  },
+  "icu:TellomiEmojiSuggest__accessibility_label": {
+    "messageformat": "Emoji suggestions",
+    "description": "Tellomi (desktop audit 3.4): accessibility label for the emoji suggestion row above the message input while typing"
   }
 }
