@@ -42,8 +42,11 @@ describe('tellomiEmojiSuggestBar', () => {
       text.length
     )[0];
     assert.isString(first);
+    if (typeof first !== 'string') {
+      throw new Error('expected a visible emoji');
+    }
     const result = tellomiEmojiSuggestBarApplying(
-      first!,
+      first,
       text,
       text.length,
       text.length

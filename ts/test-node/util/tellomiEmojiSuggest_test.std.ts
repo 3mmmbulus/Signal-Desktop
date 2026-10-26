@@ -88,7 +88,10 @@ describe('tellomiEmojiSuggest', () => {
     const text = '好的 :smi';
     const r = s(text);
     assert.isNotNull(r);
-    const { text: out, cursor } = tellomiEmojiSuggestApply(r!, '😄', text);
+    if (!r) {
+      throw new Error('expected a suggestion');
+    }
+    const { text: out, cursor } = tellomiEmojiSuggestApply(r, '😄', text);
     assert.strictEqual(out, '好的 😄');
     assert.strictEqual(cursor, out.length);
   });

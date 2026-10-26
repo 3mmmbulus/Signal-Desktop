@@ -113,7 +113,7 @@ function isBoundary(cp: number): boolean {
 }
 
 function codePointsOf(text: string): Array<number> {
-  return [...text].map(ch => ch.codePointAt(0) ?? 0);
+  return Array.from(text, ch => ch.codePointAt(0) ?? 0);
 }
 
 function utf16LengthOfCodePoints(cps: ReadonlyArray<number>): number {
@@ -189,7 +189,7 @@ export function tellomiEmojiSuggest(
       const emoji = collect(
         kw =>
           kw.startsWith(word) &&
-          [...kw].every(ch =>
+          Array.from(kw).every(ch =>
             tellomiEmojiSuggestIsAsciiWord(ch.codePointAt(0) ?? 0)
           )
       );
