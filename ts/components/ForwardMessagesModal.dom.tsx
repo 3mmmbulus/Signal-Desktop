@@ -44,6 +44,8 @@ import { Theme } from '../util/theme.std.ts';
 import { Emoji } from '../axo/emoji.std.ts';
 import { AxoConfirmDialog } from '../axo/AxoConfirmDialog.dom.tsx';
 import { AxoIconButton } from '../axo/AxoIconButton.dom.tsx';
+import { AxoSwitch } from '../axo/AxoSwitch.dom.tsx';
+import { TellomiForwardCaptionPolicy } from '../util/tellomiForwardCaptionPolicy.std.ts';
 
 export enum ForwardMessagesModalType {
   Forward,
@@ -112,6 +114,8 @@ export function ForwardMessagesModal({
   );
   const [isEditingMessage, setIsEditingMessage] = useState(false);
   const [cannotMessage, setCannotMessage] = useState(false);
+  // Tellomi (audit 5.4): hide caption on forward; sender is always hidden by protocol.
+  const [hideCaption, setHideCaption] = useState(false);
 
   const isLonelyDraft = drafts.length === 1;
   const lonelyDraft = isLonelyDraft ? drafts[0] : null;
@@ -134,19 +138,27 @@ export function ForwardMessagesModal({
   const canForwardMessages =
     hasContactsSelected && drafts.every(isDraftForwardable);
 
+  const showHideCaptionToggle =
+    TellomiForwardCaptionPolicy.showsHideCaptionToggle(drafts);
+
   const forwardMessages = useCallback(() => {
     if (!canForwardMessages) {
       showToast({ toastType: ToastType.CannotForwardEmptyMessage });
       return;
     }
     const conversationIds = selectedContacts.map(contact => contact.id);
+    let draftsToSend: ReadonlyArray<MessageForwardDraft>;
     if (lonelyDraft != null) {
       // Add link preview only if it is not currently loading.
       const previews = lonelyLinkPreview?.domain ? [lonelyLinkPreview] : [];
-      doForwardMessages(conversationIds, [{ ...lonelyDraft, previews }]);
+      draftsToSend = [{ ...lonelyDraft, previews }];
     } else {
-      doForwardMessages(conversationIds, drafts);
+      draftsToSend = drafts;
     }
+    doForwardMessages(
+      conversationIds,
+      TellomiForwardCaptionPolicy.outgoingDrafts(draftsToSend, hideCaption)
+    );
   }, [
     drafts,
     lonelyDraft,
@@ -155,6 +167,7 @@ export function ForwardMessagesModal({
     selectedContacts,
     canForwardMessages,
     showToast,
+    hideCaption,
   ]);
 
   const normalizedSearchTerm = searchTerm.trim();
@@ -248,36 +261,52 @@ export function ForwardMessagesModal({
 
   const footer = (
     <div className="module-ForwardMessageModal__footer">
-      <div>
-        {selectedContacts.map((contact, index) => {
-          return (
-            <Fragment key={contact.id}>
-              <UserText text={contact.title} />
-              {index < selectedContacts.length - 1 ? ', ' : ''}
-            </Fragment>
-          );
-        })}
-      </div>
-      <div>
-        {isEditingMessage || !isLonelyDraftEditable ? (
-          <AxoIconButton.Root
-            size="md"
-            variant="strong-primary"
-            symbol="send-fill"
-            label={i18n('icu:ForwardMessageModal--continue')}
-            disabled={!canForwardMessages}
-            onClick={forwardMessages}
+      {showHideCaptionToggle ? (
+        <label
+          className="module-ForwardMessageModal__hide-caption"
+          data-testid="TellomiForwardHideCaption"
+        >
+          <span className="module-ForwardMessageModal__hide-caption__label">
+            {i18n('icu:TellomiForwardHideCaption__label')}
+          </span>
+          <AxoSwitch.Root
+            checked={hideCaption}
+            onCheckedChange={setHideCaption}
           />
-        ) : (
-          <AxoIconButton.Root
-            size="md"
-            variant="strong-primary"
-            symbol="arrow-[end]"
-            label={i18n('icu:forwardMessage')}
-            disabled={!hasContactsSelected}
-            onClick={() => setIsEditingMessage(true)}
-          />
-        )}
+        </label>
+      ) : null}
+      <div className="module-ForwardMessageModal__footer-row">
+        <div>
+          {selectedContacts.map((contact, index) => {
+            return (
+              <Fragment key={contact.id}>
+                <UserText text={contact.title} />
+                {index < selectedContacts.length - 1 ? ', ' : ''}
+              </Fragment>
+            );
+          })}
+        </div>
+        <div>
+          {isEditingMessage || !isLonelyDraftEditable ? (
+            <AxoIconButton.Root
+              size="md"
+              variant="strong-primary"
+              symbol="send-fill"
+              label={i18n('icu:ForwardMessageModal--continue')}
+              disabled={!canForwardMessages}
+              onClick={forwardMessages}
+            />
+          ) : (
+            <AxoIconButton.Root
+              size="md"
+              variant="strong-primary"
+              symbol="arrow-[end]"
+              label={i18n('icu:forwardMessage')}
+              disabled={!hasContactsSelected}
+              onClick={() => setIsEditingMessage(true)}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
@@ -324,9 +353,26 @@ export function ForwardMessagesModal({
       >
         {isEditingMessage && lonelyDraft != null ? (
           <ForwardMessageEditor
-            draft={lonelyDraft}
-            linkPreview={lonelyLinkPreview}
+            draft={
+              hideCaption &&
+              TellomiForwardCaptionPolicy.canHideCaption(lonelyDraft)
+                ? TellomiForwardCaptionPolicy.outgoingDraft(lonelyDraft, true)
+                : lonelyDraft
+            }
+            linkPreview={
+              hideCaption &&
+              TellomiForwardCaptionPolicy.canHideCaption(lonelyDraft)
+                ? null
+                : lonelyLinkPreview
+            }
             onChange={(messageBody, bodyRanges) => {
+              // Hide-caption on: keep underlying draft so toggling off restores text.
+              if (
+                hideCaption &&
+                TellomiForwardCaptionPolicy.canHideCaption(lonelyDraft)
+              ) {
+                return;
+              }
               onChange([{ ...lonelyDraft, messageBody, bodyRanges }]);
             }}
             onChangeAttachments={attachments => {
