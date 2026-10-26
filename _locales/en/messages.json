@@ -12649,5 +12649,9 @@
   "icu:TellomiForwardHideCaption__label": {
     "messageformat": "Hide Caption",
     "description": "Tellomi (desktop audit 5.4): switch on the forward modal to strip media captions when forwarding; sender is always hidden by protocol so there is no hide-sender switch"
+  },
+  "icu:MessageContextMenu__tellomi_read_by": {
+    "messageformat": "Read {read, number}/{total, number}",
+    "description": "Tellomi (desktop audit 1.3): group context-menu Info item for an outgoing message; shows how many recipients have read it. Still opens message details. Aligns Android #425 / iOS #377."
   }
 }

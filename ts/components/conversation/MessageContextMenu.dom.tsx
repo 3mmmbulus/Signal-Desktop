@@ -26,6 +26,8 @@ type MessageContextMenuProps = Readonly<{
   onPinMessage: (() => void) | null;
   onUnpinMessage: (() => void) | null;
   onMoreInfo: (() => void) | null;
+  // Tellomi (desktop audit 1.3): override Info label with 「已读 N/M」 / Read N/M for own group msgs.
+  moreInfoLabel?: string;
   onSelect: (() => void) | null;
   children: ReactNode;
 }>;
@@ -43,6 +45,7 @@ export function MessageContextMenu({
   onReact,
   onEndPoll,
   onMoreInfo,
+  moreInfoLabel,
   onCopy,
   onSelect,
   onRetryMessageSend,
@@ -144,7 +147,7 @@ export function MessageContextMenu({
         )}
         {onMoreInfo && (
           <AxoMenuBuilder.Item symbol="info" onSelect={onMoreInfo}>
-            {i18n('icu:MessageContextMenu__info')}
+            {moreInfoLabel ?? i18n('icu:MessageContextMenu__info')}
           </AxoMenuBuilder.Item>
         )}
         {onDeleteMessage && (
