@@ -69,3 +69,15 @@ export function tellomiEmojiSuggestBarApplying(
     cursor,
   };
 }
+
+/** True when the Tellomi bar owns the UI — hide upstream `:keyword` EmojiCompletion Popper. */
+export function tellomiEmojiSuggestShouldSuppressUpstreamPopper(
+  text: string,
+  selectionStart: number,
+  selectionEnd: number
+): boolean {
+  return (
+    tellomiEmojiSuggestBarVisibleEmoji(text, selectionStart, selectionEnd)
+      .length > 0
+  );
+}

@@ -18,6 +18,7 @@ import { FunStaticEmoji } from '../../components/fun/FunEmoji.dom.tsx';
 import type { FunEmojiSelection } from '../../components/fun/panels/FunPanelEmojis.dom.tsx';
 import { strictAssert } from '../../util/assert.std.ts';
 import { Emoji } from '../../axo/emoji.std.ts';
+import { tellomiEmojiSuggestShouldSuppressUpstreamPopper } from '../../util/tellomiEmojiSuggestBar.std.ts';
 
 const { isNumber, debounce } = lodash;
 
@@ -196,6 +197,16 @@ export class EmojiCompletion {
       }
 
       if (leftTokenText.length < 2) {
+        this.reset();
+        return PASS_THROUGH;
+      }
+
+      // Tellomi audit 3.4 r3: when our suggest bar matches this colon query, keep only the bar.
+      const blotValue = blot?.value();
+      if (
+        typeof blotValue === 'string' &&
+        tellomiEmojiSuggestShouldSuppressUpstreamPopper(blotValue, index, index)
+      ) {
         this.reset();
         return PASS_THROUGH;
       }
