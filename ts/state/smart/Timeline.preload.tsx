@@ -1,7 +1,7 @@
 // Copyright 2019 Signal Messenger, LLC
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import { memo, useCallback, useRef, useMemo, type JSX } from 'react';
+import { memo, useCallback, useRef, useMemo, useState, type JSX } from 'react';
 import { useSelector } from 'react-redux';
 import { isEqual } from 'lodash';
 
@@ -39,6 +39,15 @@ import {
 import type { CollapseSet } from '../../util/CollapseSet.std.ts';
 import { isSignalConversation } from '../../util/isSignalConversation.dom.ts';
 import { getIsInFullScreenCall } from '../selectors/isInFullScreenCall.std.ts';
+import { TellomiJumpToDateContext } from '../../components/conversation/TellomiJumpToDateContext.dom.tsx';
+import { TellomiJumpToDateDialog } from '../../components/conversation/TellomiJumpToDateDialog.dom.tsx';
+import {
+  buildDaysWithMessagesSet,
+  jumpLowerBoundMs,
+} from '../../util/tellomiJumpToDate.std.ts';
+import { DataReader } from '../../sql/Client.preload.ts';
+import { isGroup } from '../../util/whatTypeOfConversation.dom.ts';
+import { drop } from '../../util/drop.std.ts';
 
 type ExternalProps = {
   id: string;
@@ -98,6 +107,7 @@ export const SmartTimeline = memo(function SmartTimeline({
     markMessageRead,
     scrollToOldestUnreadMention,
     scrollToOldestUnreadReaction,
+    jumpToConversationDate,
     markReactionsReadForVisibleMessages,
     setCenterMessage,
     setIsNearBottom,
@@ -207,62 +217,115 @@ export const SmartTimeline = memo(function SmartTimeline({
   const targetedMessageId = targetedMessage?.id;
   const isSignalConvo = isSignalConversation(conversation);
 
+  // Tellomi (desktop audit 7.2 r2): calendar greys out days with no messages.
+  const [jumpDialog, setJumpDialog] = useState<{
+    timestamp: number;
+    daysWithMessages: ReadonlySet<number>;
+  } | null>(null);
+  const onTapDateHeader = useCallback(
+    (timestamp: number, isFloating: boolean) => {
+      if (isFloating) {
+        jumpToConversationDate(id, jumpLowerBoundMs(timestamp));
+        return;
+      }
+      drop(
+        (async () => {
+          if (conversation == null) {
+            return;
+          }
+          const dayTimestamps =
+            await DataReader.getDaysWithMessagesForConversation(id, {
+              includeStoryReplies: !isGroup(conversation),
+            });
+          setJumpDialog({
+            timestamp,
+            daysWithMessages: buildDaysWithMessagesSet(dayTimestamps),
+          });
+        })()
+      );
+    },
+    [id, jumpToConversationDate, conversation]
+  );
+  const jumpContextValue = useMemo(
+    () => ({ onTapDateHeader }),
+    [onTapDateHeader]
+  );
+
   return (
-    <Timeline
-      clearInvitedServiceIdsForNewlyCreatedGroup={
-        clearInvitedServiceIdsForNewlyCreatedGroup
-      }
-      clearTargetedMessage={clearTargetedMessage}
-      closeContactSpoofingReview={closeContactSpoofingReview}
-      conversationType={conversationType}
-      discardMessages={discardMessages}
-      getPreferredBadge={getPreferredBadge}
-      getTimestampForMessage={getTimestampForMessage}
-      hasContactSpoofingReview={hasContactSpoofingReview}
-      haveNewest={haveNewest}
-      haveOldest={haveOldest}
-      i18n={i18n}
-      id={id}
-      invitedContactsForNewlyCreatedGroup={invitedContactsForNewlyCreatedGroup}
-      isBlocked={isBlocked}
-      isConversationSelected={isConversationSelected}
-      isGroupV1AndDisabled={isGroupV1AndDisabled}
-      isGroupTerminated={isGroupTerminated}
-      isInFullScreenCall={isInFullScreenCall}
-      isIncomingMessageRequest={isIncomingMessageRequest}
-      isNearBottom={isNearBottom}
-      isSignalConversation={isSignalConvo}
-      isSomeoneTyping={isSomeoneTyping}
-      items={collapseSets}
-      loadNewerMessages={loadNewerMessages}
-      loadNewestMessages={loadNewestMessages}
-      loadOlderMessages={loadOlderMessages}
-      markMessageRead={markMessageRead}
-      maybePeekGroupCall={maybePeekGroupCall}
-      messageChangeCounter={messageChangeCounter}
-      messageLoadingState={messageLoadingState}
-      updateVisibleMessages={
-        AttachmentDownloadManager.updateVisibleTimelineMessages
-      }
-      oldestUnseenIndex={updatedOldestLastSeenIndex}
-      renderContactSpoofingReviewDialog={renderContactSpoofingReviewDialog}
-      renderHeroRow={renderHeroRow}
-      renderItem={renderItem}
-      renderTypingBubble={renderTypingBubble}
-      scrollToIndex={updatedScrollToIndex}
-      scrollToIndexCounter={scrollToIndexCounter}
-      scrollToOldestUnreadMention={scrollToOldestUnreadMention}
-      scrollToOldestUnreadReaction={scrollToOldestUnreadReaction}
-      markReactionsReadForVisibleMessages={markReactionsReadForVisibleMessages}
-      setCenterMessage={setCenterMessage}
-      setIsNearBottom={setIsNearBottom}
-      targetedMessageId={targetedMessageId}
-      targetMessage={targetMessage}
-      theme={theme}
-      totalUnseen={totalUnseen}
-      unreadCount={unreadCount}
-      unreadMentionsCount={unreadMentionsCount}
-      unreadReactionsCount={unreadReactionsCount}
-    />
+    <TellomiJumpToDateContext.Provider value={jumpContextValue}>
+      <Timeline
+        clearInvitedServiceIdsForNewlyCreatedGroup={
+          clearInvitedServiceIdsForNewlyCreatedGroup
+        }
+        clearTargetedMessage={clearTargetedMessage}
+        closeContactSpoofingReview={closeContactSpoofingReview}
+        conversationType={conversationType}
+        discardMessages={discardMessages}
+        getPreferredBadge={getPreferredBadge}
+        getTimestampForMessage={getTimestampForMessage}
+        hasContactSpoofingReview={hasContactSpoofingReview}
+        haveNewest={haveNewest}
+        haveOldest={haveOldest}
+        i18n={i18n}
+        id={id}
+        invitedContactsForNewlyCreatedGroup={
+          invitedContactsForNewlyCreatedGroup
+        }
+        isBlocked={isBlocked}
+        isConversationSelected={isConversationSelected}
+        isGroupV1AndDisabled={isGroupV1AndDisabled}
+        isGroupTerminated={isGroupTerminated}
+        isInFullScreenCall={isInFullScreenCall}
+        isIncomingMessageRequest={isIncomingMessageRequest}
+        isNearBottom={isNearBottom}
+        isSignalConversation={isSignalConvo}
+        isSomeoneTyping={isSomeoneTyping}
+        items={collapseSets}
+        loadNewerMessages={loadNewerMessages}
+        loadNewestMessages={loadNewestMessages}
+        loadOlderMessages={loadOlderMessages}
+        markMessageRead={markMessageRead}
+        maybePeekGroupCall={maybePeekGroupCall}
+        messageChangeCounter={messageChangeCounter}
+        messageLoadingState={messageLoadingState}
+        updateVisibleMessages={
+          AttachmentDownloadManager.updateVisibleTimelineMessages
+        }
+        oldestUnseenIndex={updatedOldestLastSeenIndex}
+        renderContactSpoofingReviewDialog={renderContactSpoofingReviewDialog}
+        renderHeroRow={renderHeroRow}
+        renderItem={renderItem}
+        renderTypingBubble={renderTypingBubble}
+        scrollToIndex={updatedScrollToIndex}
+        scrollToIndexCounter={scrollToIndexCounter}
+        scrollToOldestUnreadMention={scrollToOldestUnreadMention}
+        scrollToOldestUnreadReaction={scrollToOldestUnreadReaction}
+        markReactionsReadForVisibleMessages={
+          markReactionsReadForVisibleMessages
+        }
+        setCenterMessage={setCenterMessage}
+        setIsNearBottom={setIsNearBottom}
+        targetedMessageId={targetedMessageId}
+        targetMessage={targetMessage}
+        theme={theme}
+        totalUnseen={totalUnseen}
+        unreadCount={unreadCount}
+        unreadMentionsCount={unreadMentionsCount}
+        unreadReactionsCount={unreadReactionsCount}
+      />
+      {jumpDialog != null ? (
+        <TellomiJumpToDateDialog
+          open
+          i18n={i18n}
+          initialTimestamp={jumpDialog.timestamp}
+          daysWithMessages={jumpDialog.daysWithMessages}
+          onClose={() => setJumpDialog(null)}
+          onJump={dayStartMs => {
+            setJumpDialog(null);
+            jumpToConversationDate(id, dayStartMs);
+          }}
+        />
+      ) : null}
+    </TellomiJumpToDateContext.Provider>
   );
 });

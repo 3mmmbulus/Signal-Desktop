@@ -9491,5 +9491,14 @@
   },
   "icu:TellomiFeedPostLink__description": {
     "messageformat": "动态只能在 iOS 或安卓版 Tellomi 里查看。请在手机上打开这条链接。"
+  },
+  "icu:TellomiJumpToDateDialog__title": {
+    "messageformat": "跳到指定日期"
+  },
+  "icu:TellomiJumpToDateDialog__dateLabel": {
+    "messageformat": "日期"
+  },
+  "icu:TellomiJumpToDateDialog__jump": {
+    "messageformat": "跳转"
   }
 }

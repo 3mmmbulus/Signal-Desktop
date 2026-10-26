@@ -12624,5 +12624,14 @@
   "icu:TellomiFeedPostLink__description": {
     "messageformat": "Posts in the feed can only be viewed in Tellomi on iOS or Android. Open this link on your phone.",
     "description": "Tellomi: body of that notice. Tells the user to open the link on their phone; it names no post and does not fetch anything."
+  },
+  "icu:TellomiJumpToDateDialog__title": {
+    "messageformat": "Jump to date"
+  },
+  "icu:TellomiJumpToDateDialog__dateLabel": {
+    "messageformat": "Date"
+  },
+  "icu:TellomiJumpToDateDialog__jump": {
+    "messageformat": "Jump"
   }
 }

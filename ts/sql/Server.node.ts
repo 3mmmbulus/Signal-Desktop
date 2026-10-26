@@ -491,6 +491,8 @@ export const DataReader: ServerReadableInterface = {
   getOldestUnreadMentionOfMeForConversation,
   getTotalUnreadReactionsToMeForConversation,
   getOldestMessageWithUnreadReactionToMe,
+  getFirstMessageOnOrAfterTimestamp,
+  getDaysWithMessagesForConversation,
   getTotalUnreadForConversation,
   getTotalUnreadMentionsOfMeForConversation,
   getMessageMetricsForConversation,
@@ -4654,6 +4656,59 @@ function getOldestMessageWithUnreadReactionToMe(
     LIMIT 1;
   `;
   return db.prepare(query).get<MessageMetricsType>(params);
+}
+
+// Tellomi (desktop audit 7.2): first non-story message with sent_at >= timestamp
+// (local midnight of the chosen day). Used by jump-to-date.
+function getFirstMessageOnOrAfterTimestamp(
+  db: ReadableDB,
+  conversationId: string,
+  timestamp: number,
+  {
+    storyId,
+    includeStoryReplies,
+  }: {
+    storyId?: string;
+    includeStoryReplies: boolean;
+  }
+): MessageMetricsType | undefined {
+  const [query, params] = sql`
+    SELECT received_at, sent_at, id FROM messages WHERE
+        conversationId = ${conversationId} AND
+        isStory IS 0 AND
+        (${_storyIdPredicate(storyId, includeStoryReplies)}) AND
+        sent_at >= ${timestamp}
+      ORDER BY received_at ASC, sent_at ASC
+      LIMIT 1;
+  `;
+
+  return db.prepare(query).get<MessageMetricsType>(params);
+}
+
+// Tellomi (desktop audit 7.2 r2): one sent_at per local calendar day that has
+// non-story messages (SQLite localtime = user machine). Callers fold these to
+// local midnights via buildDaysWithMessagesSet.
+function getDaysWithMessagesForConversation(
+  db: ReadableDB,
+  conversationId: string,
+  {
+    storyId,
+    includeStoryReplies,
+  }: {
+    storyId?: string;
+    includeStoryReplies: boolean;
+  }
+): Array<number> {
+  const [query, params] = sql`
+    SELECT MIN(sent_at) AS sent_at FROM messages WHERE
+        conversationId = ${conversationId} AND
+        isStory IS 0 AND
+        (${_storyIdPredicate(storyId, includeStoryReplies)})
+      GROUP BY date(sent_at / 1000.0, 'unixepoch', 'localtime');
+  `;
+
+  const rows = db.prepare(query).all<{ sent_at: number }>(params);
+  return rows.map(row => row.sent_at);
 }
 
 function getTotalUnreadForConversation(

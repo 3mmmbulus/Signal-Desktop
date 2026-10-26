@@ -16,6 +16,7 @@ import {
   CalendarGridBody,
   CalendarGridHeader,
   CalendarHeaderCell,
+  type DateValue,
 } from 'react-aria-components';
 import { Dialog as RadixDialog } from 'radix-ui';
 import type { CalendarDate } from '@internationalized/date';
@@ -33,13 +34,22 @@ export type PropsType = Readonly<{
   i18n: LocalizerType;
   isDisabled?: boolean;
   minValue?: CalendarDate;
+  /** Tellomi: grey out / block selection for days without messages. */
+  isDateUnavailable?: (date: DateValue) => boolean;
   value: CalendarDate | null;
   onUpdateDate: (value: CalendarDate | null) => void;
 }> &
   AriaLabelPropsType;
 
 export function DatePicker(props: PropsType): JSX.Element {
-  const { i18n, isDisabled = false, minValue, value, onUpdateDate } = props;
+  const {
+    i18n,
+    isDisabled = false,
+    minValue,
+    isDateUnavailable,
+    value,
+    onUpdateDate,
+  } = props;
   const [open, setOpen] = useState(false);
   return (
     <AriaDatePicker
@@ -48,6 +58,7 @@ export function DatePicker(props: PropsType): JSX.Element {
       aria-labelledby={props['aria-labelledby']}
       isDisabled={isDisabled}
       minValue={minValue}
+      isDateUnavailable={isDateUnavailable}
       shouldForceLeadingZeros
       value={value}
       onChange={onUpdateDate}
@@ -155,6 +166,7 @@ export function DatePicker(props: PropsType): JSX.Element {
                           'rounded-lg text-center type-body-medium',
                           'text-primary',
                           'data-disabled:text-disabled',
+                          'data-unavailable:text-disabled',
                           'data-hovered:bg-primary',
                           'data-focused:bg-primary',
                           'data-today:font-semibold',

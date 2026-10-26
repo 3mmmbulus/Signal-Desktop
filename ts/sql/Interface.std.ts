@@ -964,6 +964,23 @@ type ReadableInterface = {
     conversationId: string,
     ourAci: AciString
   ) => MessageMetricsType | undefined;
+  // Tellomi (desktop audit 7.2): first non-story message on/after local day start.
+  getFirstMessageOnOrAfterTimestamp: (
+    conversationId: string,
+    timestamp: number,
+    options: {
+      storyId?: string;
+      includeStoryReplies: boolean;
+    }
+  ) => MessageMetricsType | undefined;
+  // Tellomi (desktop audit 7.2 r2): one sent_at per local day that has messages.
+  getDaysWithMessagesForConversation: (
+    conversationId: string,
+    options: {
+      storyId?: string;
+      includeStoryReplies: boolean;
+    }
+  ) => Array<number>;
 
   getReactionByTimestamp: (
     fromId: string,
