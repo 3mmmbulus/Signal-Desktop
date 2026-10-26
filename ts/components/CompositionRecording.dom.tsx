@@ -1,6 +1,6 @@
 // Copyright 2023 Signal Messenger, LLC
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useEffect, useRef, useState, type JSX } from 'react';
+import { useCallback, useEffect, useState, type JSX } from 'react';
 import { useEscapeHandling } from '../hooks/useEscapeHandling.dom.ts';
 import type {
   HideToastAction,
@@ -16,6 +16,12 @@ import { tw } from '../axo/tw.dom.tsx';
 import { durationToPlaybackText } from '../util/durationToPlaybackText.std.ts';
 import { RecordingComposer } from './RecordingComposer.dom.tsx';
 import { AxoConfirmDialog } from '../axo/AxoConfirmDialog.dom.tsx';
+import { AxoIconButton } from '../axo/AxoIconButton.dom.tsx';
+import {
+  tellomiVoicePauseAction,
+  tellomiVoicePauseLabelKey,
+  tellomiVoicePauseSymbol,
+} from '../util/tellomiVoicePauseUI.std.ts';
 
 export type Props = Readonly<{
   i18n: LocalizerType;
@@ -27,6 +33,12 @@ export type Props = Readonly<{
   saveDraftRecordingIfNeeded: () => void;
   showToast: ShowToastAction;
   hideToast: HideToastAction;
+  /** Tellomi (audit 3.3): mid-take pause state. */
+  isPaused: boolean;
+  onPause: () => void;
+  onResume: () => void;
+  /** Tellomi: effective elapsed ms (paused intervals excluded). */
+  getElapsedMs: () => number;
 }>;
 
 export function CompositionRecording({
@@ -39,6 +51,10 @@ export function CompositionRecording({
   saveDraftRecordingIfNeeded,
   showToast,
   hideToast,
+  isPaused,
+  onPause,
+  onResume,
+  getElapsedMs,
 }: Props): JSX.Element {
   useEscapeHandling(onCancel);
 
@@ -57,17 +73,19 @@ export function CompositionRecording({
     return () => hideToast(toast);
   }, [showToast, hideToast]);
 
-  // oxlint-disable-next-line react/purity
-  const startTime = useRef(Date.now());
-  const [duration, setDuration] = useState(0);
-  const drift = useRef(0);
+  const [duration, setDuration] = useState(() => getElapsedMs() / SECOND);
+  const [drift, setDrift] = useState(0);
 
-  // update recording duration
+  // Tellomi (audit 3.3): tick only while actively recording; freeze while paused.
   useEffect(() => {
+    if (isPaused) {
+      // Do not sync setDuration here (oxlint set-state-in-effect); last tick already froze it.
+      return;
+    }
+
     const timeoutId = setTimeout(() => {
-      const now = Date.now();
-      const newDurationMs = now - startTime.current;
-      drift.current = newDurationMs % SECOND;
+      const newDurationMs = getElapsedMs();
+      setDrift(newDurationMs % SECOND);
       setDuration(newDurationMs / SECOND);
 
       if (
@@ -75,7 +93,7 @@ export function CompositionRecording({
       ) {
         errorRecording(ErrorDialogAudioRecorderType.Timeout);
       }
-    }, SECOND - drift.current);
+    }, SECOND - drift);
 
     return () => {
       clearTimeout(timeoutId);
@@ -83,8 +101,19 @@ export function CompositionRecording({
   }, [
     // oxlint-disable-next-line react/exhaustive-effect-dependencies
     duration,
+    drift,
     errorRecording,
+    getElapsedMs,
+    isPaused,
   ]);
+
+  const handleTogglePause = useCallback(() => {
+    if (tellomiVoicePauseAction(isPaused) === 'resume') {
+      onResume();
+    } else {
+      onPause();
+    }
+  }, [isPaused, onPause, onResume]);
 
   let confirmationDialog: JSX.Element | undefined;
   if (errorDialogAudioRecorderType === ErrorDialogAudioRecorderType.Timeout) {
@@ -118,12 +147,28 @@ export function CompositionRecording({
     );
   }
 
+  const pauseLabel = i18n(tellomiVoicePauseLabelKey(isPaused));
+
   return (
     <RecordingComposer i18n={i18n} onCancel={onCancel} onSend={onSend}>
-      <div className="CompositionRecording__microphone" />
+      <div
+        className={
+          isPaused
+            ? 'CompositionRecording__microphone CompositionRecording__microphone--paused'
+            : 'CompositionRecording__microphone'
+        }
+      />
       <div className="CompositionRecording__timer">
         {durationToPlaybackText(duration)}
       </div>
+      <AxoIconButton.Root
+        variant="implied-secondary"
+        size="sm"
+        symbol={tellomiVoicePauseSymbol(isPaused)}
+        label={pauseLabel}
+        tooltip={false}
+        onClick={handleTogglePause}
+      />
       <div
         className={tw(
           'shrink-0 grow overflow-hidden',

@@ -23,14 +23,39 @@ for (let i = 0; i < 200; i += 1) {
   });
 }
 
+const startedAt = Date.now();
+function fakeElapsedMs(): number {
+  return Date.now() - startedAt;
+}
+
+function sharedProps(
+  overrides: Partial<Props> = {}
+): Omit<Props, 'onCancel' | 'onSend'> {
+  return {
+    i18n,
+    errorRecording: _ => action('error')(),
+    saveDraftRecordingIfNeeded: action('saveDraftRecordingIfNeeded'),
+    showToast: action('showToast'),
+    hideToast: action('hideToast'),
+    peaks: PEAKS,
+    isPaused: false,
+    onPause: action('onPause'),
+    onResume: action('onResume'),
+    getElapsedMs: fakeElapsedMs,
+    ...overrides,
+  };
+}
+
 export function Default(): JSX.Element {
   const [active, setActive] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
 
   const cancel = action('cancel');
   const send = action('send');
 
   const handleActivate = () => {
     setActive(true);
+    setIsPaused(false);
   };
 
   const handleCancel = () => {
@@ -51,14 +76,11 @@ export function Default(): JSX.Element {
       )}
       {active && (
         <CompositionRecording
-          i18n={i18n}
+          {...sharedProps({ isPaused })}
           onCancel={handleCancel}
           onSend={handleSend}
-          errorRecording={_ => action('error')()}
-          saveDraftRecordingIfNeeded={action('saveDraftRecordingIfNeeded')}
-          showToast={action('showToast')}
-          hideToast={action('hideToast')}
-          peaks={PEAKS}
+          onPause={() => setIsPaused(true)}
+          onResume={() => setIsPaused(false)}
         />
       )}
     </>
@@ -68,14 +90,19 @@ export function Default(): JSX.Element {
 export function Visible(): JSX.Element {
   return (
     <CompositionRecording
-      i18n={i18n}
+      {...sharedProps()}
       onCancel={action('cancel')}
       onSend={action('send')}
-      errorRecording={_ => action('error')()}
-      saveDraftRecordingIfNeeded={action('saveDraftRecordingIfNeeded')}
-      showToast={action('showToast')}
-      hideToast={action('hideToast')}
-      peaks={PEAKS}
+    />
+  );
+}
+
+export function Paused(): JSX.Element {
+  return (
+    <CompositionRecording
+      {...sharedProps({ isPaused: true, getElapsedMs: () => 12_500 })}
+      onCancel={action('cancel')}
+      onSend={action('send')}
     />
   );
 }

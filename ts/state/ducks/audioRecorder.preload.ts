@@ -34,6 +34,8 @@ let lastPeakIndex = 0;
 
 export type AudioRecorderStateType = ReadonlyDeep<{
   recordingState: RecordingState;
+  /** Tellomi (audit 3.3): true while recording is paused mid-take. */
+  isPaused: boolean;
   peaks: Array<PeakType>;
   errorDialogAudioRecorderType?: ErrorDialogAudioRecorderType;
 }>;
@@ -46,6 +48,8 @@ const ERROR_RECORDING = 'audioRecorder/ERROR_RECORDING';
 const NOW_RECORDING = 'audioRecorder/NOW_RECORDING';
 const START_RECORDING = 'audioRecorder/START_RECORDING';
 const PEAK = 'audioRecorder/PEAK';
+const PAUSE_RECORDING = 'audioRecorder/PAUSE_RECORDING';
+const RESUME_RECORDING = 'audioRecorder/RESUME_RECORDING';
 
 type CancelRecordingAction = ReadonlyDeep<{
   type: typeof CANCEL_RECORDING;
@@ -71,6 +75,14 @@ type PeakAction = ReadonlyDeep<{
   type: typeof PEAK;
   payload: number;
 }>;
+type PauseRecordingAction = ReadonlyDeep<{
+  type: typeof PAUSE_RECORDING;
+  payload: undefined;
+}>;
+type ResumeRecordingAction = ReadonlyDeep<{
+  type: typeof RESUME_RECORDING;
+  payload: undefined;
+}>;
 
 type AudioPlayerActionType = ReadonlyDeep<
   | CancelRecordingAction
@@ -79,10 +91,17 @@ type AudioPlayerActionType = ReadonlyDeep<
   | NowRecordingAction
   | StartRecordingAction
   | PeakAction
+  | PauseRecordingAction
+  | ResumeRecordingAction
 >;
 
 export function getIsRecording(audioRecorder: AudioRecorderStateType): boolean {
   return audioRecorder.recordingState === RecordingState.Recording;
+}
+
+/** Tellomi (audit 3.3): elapsed ms from the live recorder (paused time excluded). */
+export function getRecordingElapsedMs(nowMs: number = Date.now()): number {
+  return recorder?.elapsedMs(nowMs) ?? 0;
 }
 
 // Action Creators
@@ -93,6 +112,8 @@ export const actions = {
   errorRecording,
   startRecording,
   warmupRecording,
+  pauseRecording,
+  resumeRecording,
 };
 
 export const useAudioRecorderActions = (): BoundActionCreatorsMapObject<
@@ -228,6 +249,40 @@ function cancelRecording(): ThunkAction<
   };
 }
 
+function pauseRecording(): ThunkAction<
+  void,
+  RootStateType,
+  unknown,
+  PauseRecordingAction
+> {
+  return dispatch => {
+    if (!recorder?.pause()) {
+      return;
+    }
+    dispatch({
+      type: PAUSE_RECORDING,
+      payload: undefined,
+    });
+  };
+}
+
+function resumeRecording(): ThunkAction<
+  void,
+  RootStateType,
+  unknown,
+  ResumeRecordingAction
+> {
+  return dispatch => {
+    if (!recorder?.resume()) {
+      return;
+    }
+    dispatch({
+      type: RESUME_RECORDING,
+      payload: undefined,
+    });
+  };
+}
+
 function errorRecording(
   errorDialogAudioRecorderType: ErrorDialogAudioRecorderType
 ): ErrorRecordingAction {
@@ -244,6 +299,7 @@ function errorRecording(
 export function getEmptyState(): AudioRecorderStateType {
   return {
     recordingState: RecordingState.Idle,
+    isPaused: false,
     peaks: [],
   };
 }
@@ -257,6 +313,7 @@ export function reducer(
       ...state,
       errorDialogAudioRecorderType: undefined,
       recordingState: RecordingState.Initializing,
+      isPaused: false,
     };
   }
 
@@ -265,7 +322,22 @@ export function reducer(
       ...state,
       errorDialogAudioRecorderType: undefined,
       recordingState: RecordingState.Recording,
+      isPaused: false,
       peaks: [],
+    };
+  }
+
+  if (action.type === PAUSE_RECORDING) {
+    return {
+      ...state,
+      isPaused: true,
+    };
+  }
+
+  if (action.type === RESUME_RECORDING) {
+    return {
+      ...state,
+      isPaused: false,
     };
   }
 
@@ -274,6 +346,7 @@ export function reducer(
       ...state,
       errorDialogAudioRecorderType: undefined,
       recordingState: RecordingState.Idle,
+      isPaused: false,
       peaks: [],
     };
   }
@@ -282,11 +355,15 @@ export function reducer(
     return {
       ...state,
       errorDialogAudioRecorderType: action.payload,
+      isPaused: false,
       peaks: [],
     };
   }
 
   if (action.type === PEAK) {
+    if (state.isPaused) {
+      return state;
+    }
     lastPeakIndex += 1;
     // Wrap uint32
     // oxlint-disable-next-line no-bitwise
