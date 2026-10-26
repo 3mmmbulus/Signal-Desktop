@@ -79,7 +79,7 @@ export function CompositionRecording({
   // Tellomi (audit 3.3): tick only while actively recording; freeze while paused.
   useEffect(() => {
     if (isPaused) {
-      setDuration(getElapsedMs() / SECOND);
+      // Do not sync setDuration here (oxlint set-state-in-effect); last tick already froze it.
       return;
     }
 
