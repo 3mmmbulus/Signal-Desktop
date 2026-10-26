@@ -3,6 +3,7 @@
 
 import { useCallback, useMemo, useState, type JSX } from 'react';
 import type { CalendarDate } from '@internationalized/date';
+import type { DateValue } from 'react-aria-components';
 import {
   fromDateToLocal,
   getLocalTimeZone,
@@ -46,7 +47,7 @@ export function TellomiJumpToDateDialog({
   );
 
   const isDateUnavailable = useCallback(
-    (d: CalendarDate) => {
+    (d: DateValue) => {
       const ms = d.toDate(getLocalTimeZone()).getTime();
       return !isJumpDayAvailable(ms, daysWithMessages);
     },

@@ -16,6 +16,7 @@ import {
   CalendarGridBody,
   CalendarGridHeader,
   CalendarHeaderCell,
+  type DateValue,
 } from 'react-aria-components';
 import { Dialog as RadixDialog } from 'radix-ui';
 import type { CalendarDate } from '@internationalized/date';
@@ -34,7 +35,7 @@ export type PropsType = Readonly<{
   isDisabled?: boolean;
   minValue?: CalendarDate;
   /** Tellomi: grey out / block selection for days without messages. */
-  isDateUnavailable?: (date: CalendarDate) => boolean;
+  isDateUnavailable?: (date: DateValue) => boolean;
   value: CalendarDate | null;
   onUpdateDate: (value: CalendarDate | null) => void;
 }> &
