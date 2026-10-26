@@ -261,9 +261,12 @@ export function CompositionInput(props: Props): ReactElement {
       setTellomiSuggestEmoji([]);
       return;
     }
-    setTellomiSuggestEmoji(
-      tellomiEmojiSuggestBarVisibleEmoji(value, offset, offset)
-    );
+    const next = tellomiEmojiSuggestBarVisibleEmoji(value, offset, offset);
+    setTellomiSuggestEmoji(next);
+    // Tellomi r3: drop upstream colon Popper when our bar owns the query.
+    if (next.length > 0) {
+      emojiCompletionRef.current?.reset();
+    }
   }, []);
 
   const applyTellomiEmojiSuggest = useCallback((emoji: string): void => {
@@ -1182,7 +1185,9 @@ export function CompositionInput(props: Props): ReactElement {
               {reactQuill}
               {shouldHidePopovers ? null : (
                 <>
-                  {emojiCompletionElement}
+                  {tellomiSuggestEmoji.length > 0
+                    ? null
+                    : emojiCompletionElement}
                   {mentionCompletionElement}
                   {formattingChooserElement}
                 </>

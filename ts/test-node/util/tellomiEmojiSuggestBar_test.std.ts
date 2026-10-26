@@ -6,6 +6,7 @@ import { tellomiEmojiSuggest } from '../../util/tellomiEmojiSuggest.std.ts';
 import {
   tellomiEmojiSuggestBarApplying,
   tellomiEmojiSuggestBarVisibleEmoji,
+  tellomiEmojiSuggestShouldSuppressUpstreamPopper,
 } from '../../util/tellomiEmojiSuggestBar.std.ts';
 
 describe('tellomiEmojiSuggestBar', () => {
@@ -73,6 +74,47 @@ describe('tellomiEmojiSuggestBar', () => {
       [...(tellomiEmojiSuggest('ok', 2, 2)?.emoji ?? [])]
         .filter((e, i, a) => a.indexOf(e) === i)
         .slice(0, 8)
+    );
+  });
+
+  it('colonQueryWithTellomiMatchSuppressesUpstreamPopper', () => {
+    const text = 'hi :smi';
+    assert.isTrue(
+      tellomiEmojiSuggestShouldSuppressUpstreamPopper(
+        text,
+        text.length,
+        text.length
+      )
+    );
+    assert.isAbove(
+      tellomiEmojiSuggestBarVisibleEmoji(text, text.length, text.length).length,
+      0
+    );
+  });
+
+  it('colonQueryWithoutTellomiMatchKeepsUpstreamPopper', () => {
+    // Not in Tellomi keyword table; upstream EmojiCompletion may still show.
+    const text = ':zzzznotakeyword';
+    assert.isFalse(
+      tellomiEmojiSuggestShouldSuppressUpstreamPopper(
+        text,
+        text.length,
+        text.length
+      )
+    );
+    assert.deepStrictEqual(
+      tellomiEmojiSuggestBarVisibleEmoji(text, text.length, text.length),
+      []
+    );
+  });
+
+  it('englishAndHanSuppressWhenBarVisible', () => {
+    assert.isTrue(tellomiEmojiSuggestShouldSuppressUpstreamPopper('ok', 2, 2));
+    assert.isTrue(
+      tellomiEmojiSuggestShouldSuppressUpstreamPopper('哈哈', 2, 2)
+    );
+    assert.isFalse(
+      tellomiEmojiSuggestShouldSuppressUpstreamPopper('hello there', 11, 11)
     );
   });
 });
