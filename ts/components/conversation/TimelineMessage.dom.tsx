@@ -148,6 +148,7 @@ export function TimelineMessage(props: Props): JSX.Element {
     setQuoteByMessageId,
     setMessageToEdit,
     text,
+    tellomiReadBy,
     timestamp,
     toggleDeleteMessagesModal,
     toggleForwardMessagesModal,
@@ -376,6 +377,14 @@ export function TimelineMessage(props: Props): JSX.Element {
               args: { messageId: id },
             })
           }
+          moreInfoLabel={
+            tellomiReadBy
+              ? i18n('icu:MessageContextMenu__tellomi_read_by', {
+                  read: tellomiReadBy.read,
+                  total: tellomiReadBy.total,
+                })
+              : undefined
+          }
           onDebugMessage={handleDebugMessage}
         >
           {children}
@@ -404,6 +413,7 @@ export function TimelineMessage(props: Props): JSX.Element {
       i18n,
       id,
       isPinned,
+      tellomiReadBy,
       pushPanelForConversation,
       retryDeleteForEveryone,
       retryMessageSend,
