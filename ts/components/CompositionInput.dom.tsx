@@ -95,6 +95,11 @@ import { AxoTooltip } from '../axo/AxoTooltip.dom.tsx';
 import { tw } from '../axo/tw.dom.tsx';
 import type { Emoji } from '../axo/emoji.std.ts';
 import { RecoveryKeyPasteWarning } from './RecoveryKeyPasteWarning.dom.tsx';
+import { TellomiEmojiSuggestBar } from './TellomiEmojiSuggestBar.dom.tsx';
+import {
+  tellomiEmojiSuggestBarApplying,
+  tellomiEmojiSuggestBarVisibleEmoji,
+} from '../util/tellomiEmojiSuggestBar.std.ts';
 
 const log = createLogger('CompositionInput');
 
@@ -225,6 +230,9 @@ export function CompositionInput(props: Props): ReactElement {
     useState<RangeStatic | null>(null);
   const [mentionCompletionElement, setMentionCompletionElement] =
     useState<JSX.Element>();
+  const [tellomiSuggestEmoji, setTellomiSuggestEmoji] = useState<
+    ReadonlyArray<string>
+  >([]);
 
   const emojiCompletionRef = useRef<EmojiCompletion>(undefined);
   const mentionCompletionRef = useRef<MentionCompletion>(undefined);
@@ -235,6 +243,63 @@ export function CompositionInput(props: Props): ReactElement {
   const memberRepositoryRef = useRef<MemberRepository>(new MemberRepository());
 
   const [isMouseDown, setIsMouseDown] = useState<boolean>(false);
+
+  const refreshTellomiEmojiSuggest = useCallback((): void => {
+    const quill = quillRef.current;
+    if (quill === undefined) {
+      setTellomiSuggestEmoji([]);
+      return;
+    }
+    const range = quill.getSelection();
+    if (range == null || range.length !== 0) {
+      setTellomiSuggestEmoji([]);
+      return;
+    }
+    const [blot, offset] = quill.getLeaf(range.index);
+    const value = blot?.value();
+    if (typeof value !== 'string') {
+      setTellomiSuggestEmoji([]);
+      return;
+    }
+    setTellomiSuggestEmoji(
+      tellomiEmojiSuggestBarVisibleEmoji(value, offset, offset)
+    );
+  }, []);
+
+  const applyTellomiEmojiSuggest = useCallback((emoji: string): void => {
+    const quill = quillRef.current;
+    if (quill === undefined) {
+      return;
+    }
+    const range = quill.getSelection();
+    if (range == null || range.length !== 0) {
+      return;
+    }
+    const [blot, offset] = quill.getLeaf(range.index);
+    const value = blot?.value();
+    if (typeof value !== 'string') {
+      return;
+    }
+    const applied = tellomiEmojiSuggestBarApplying(
+      emoji,
+      value,
+      offset,
+      offset
+    );
+    if (applied == null) {
+      return;
+    }
+    const leafStart = range.index - offset;
+    quill.focus();
+    quill.deleteText(
+      leafStart + applied.replacedStart,
+      applied.replacedLength,
+      'user'
+    );
+    quill.insertText(leafStart + applied.replacedStart, emoji, 'user');
+    quill.setSelection(leafStart + applied.cursor, 0, 'user');
+    setTellomiSuggestEmoji([]);
+  }, []);
 
   const generateDelta = (
     text: string,
@@ -691,6 +756,7 @@ export function CompositionInput(props: Props): ReactElement {
             messageText: text,
             sendCounter,
           });
+          refreshTellomiEmojiSuggest();
         }, 0);
       }
     }
@@ -712,6 +778,11 @@ export function CompositionInput(props: Props): ReactElement {
 
       propsRef.current.onDirtyChange(isDirty);
     }
+
+    // Tellomi audit 3.4: keep suggestion bar in sync after every edit.
+    setTimeout(() => {
+      refreshTellomiEmojiSuggest();
+    }, 0);
   };
 
   useEffect(() => {
@@ -825,6 +896,7 @@ export function CompositionInput(props: Props): ReactElement {
     onSelectEmoji,
     onShortKeyEnter,
     onTab,
+    refreshTellomiEmojiSuggest,
   };
   const callbacksRef = useRef(unstaleCallbacks);
   callbacksRef.current = unstaleCallbacks;
@@ -952,6 +1024,10 @@ export function CompositionInput(props: Props): ReactElement {
                 if (newRange == null) {
                   setLastSelectionRange(oldRange);
                 }
+                // Tellomi audit 3.4: refresh word/colon emoji suggestions on caret move.
+                setTimeout(() => {
+                  callbacksRef.current.refreshTellomiEmojiSuggest();
+                }, 0);
               }
             );
 
@@ -1078,6 +1154,13 @@ export function CompositionInput(props: Props): ReactElement {
               />
             )}
             {children}
+            {!shouldHidePopovers && !isViewOnceActive ? (
+              <TellomiEmojiSuggestBar
+                i18n={i18n}
+                emoji={tellomiSuggestEmoji}
+                onSelect={applyTellomiEmojiSuggest}
+              />
+            ) : null}
             {isViewOnceActive && (
               <div className={getClassName('__view-once-placeholder')}>
                 {i18n('icu:CompositionArea--viewOnceMediaPlaceholder')}

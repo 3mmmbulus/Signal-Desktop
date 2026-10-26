@@ -69,6 +69,7 @@ $is-storybook: false !default;
 @use 'components/CompositionArea.scss';
 @use 'components/CompositionRecording.scss';
 @use 'components/CompositionRecordingDraft.scss';
+@use 'components/TellomiEmojiSuggestBar.scss';
 @use 'components/CompositionInput.scss';
 @use 'components/CompositionTextArea.scss';
 @use 'components/ContactListItem.scss';
